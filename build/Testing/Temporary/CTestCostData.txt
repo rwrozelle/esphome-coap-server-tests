@@ -1,5 +1,0 @@
-test_cbor_encode 1 0.00802534
-test_cbor_device_info 1 0.00317055
-test_oscore_crypto 1 0.00329504
-test_oscore_keys 1 0.00542886
----

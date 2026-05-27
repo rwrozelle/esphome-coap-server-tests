@@ -1,2 +1,0 @@
-/usr/bin/ar qc libcoap_server_lib.a CMakeFiles/coap_server_lib.dir/home/mc/dev/esphome/esphome/components/coap_server/coap_server_cbor.cpp.o CMakeFiles/coap_server_lib.dir/home/mc/dev/esphome/esphome/components/coap_server/coap_server_ot.cpp.o
-/usr/bin/ranlib libcoap_server_lib.a
