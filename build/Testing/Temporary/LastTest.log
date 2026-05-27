@@ -1,0 +1,181 @@
+Start testing: May 26 22:32 EDT
+----------------------------------------------------------
+1/4 Testing: test_cbor_encode
+1/4 Test: test_cbor_encode
+Command: "/home/mc/dev/esphome-coap-server-tests/build/test_cbor_encode"
+Directory: /home/mc/dev/esphome-coap-server-tests/build
+"test_cbor_encode" start time: May 26 22:32 EDT
+Output:
+----------------------------------------------------------
+Running main() from /home/mc/dev/esphome-coap-server-tests/build/_deps/googletest-src/googletest/src/gtest_main.cc
+[==========] Running 16 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 16 tests from CborOutput
+[ RUN      ] CborOutput.SensorFloat
+[       OK ] CborOutput.SensorFloat (0 ms)
+[ RUN      ] CborOutput.SensorNaN
+[       OK ] CborOutput.SensorNaN (0 ms)
+[ RUN      ] CborOutput.SwitchTrue
+[       OK ] CborOutput.SwitchTrue (0 ms)
+[ RUN      ] CborOutput.SwitchFalse
+[       OK ] CborOutput.SwitchFalse (0 ms)
+[ RUN      ] CborOutput.BinarySensorTrue
+[       OK ] CborOutput.BinarySensorTrue (0 ms)
+[ RUN      ] CborOutput.TextSensorValue
+[       OK ] CborOutput.TextSensorValue (0 ms)
+[ RUN      ] CborOutput.TextSensorEmpty
+[       OK ] CborOutput.TextSensorEmpty (0 ms)
+[ RUN      ] CborOutput.NumberFloat
+[       OK ] CborOutput.NumberFloat (0 ms)
+[ RUN      ] CborOutput.LockNone
+[       OK ] CborOutput.LockNone (0 ms)
+[ RUN      ] CborOutput.LockLocked
+[       OK ] CborOutput.LockLocked (0 ms)
+[ RUN      ] CborOutput.LockUnlocked
+[       OK ] CborOutput.LockUnlocked (0 ms)
+[ RUN      ] CborOutput.LockJammed
+[       OK ] CborOutput.LockJammed (0 ms)
+[ RUN      ] CborOutput.ValveHalfOpen
+[       OK ] CborOutput.ValveHalfOpen (0 ms)
+[ RUN      ] CborOutput.ValveClosed
+[       OK ] CborOutput.ValveClosed (0 ms)
+[ RUN      ] CborOutput.ButtonReturnsZero
+[       OK ] CborOutput.ButtonReturnsZero (0 ms)
+[ RUN      ] CborOutput.DeviceReturnsZero
+[       OK ] CborOutput.DeviceReturnsZero (0 ms)
+[----------] 16 tests from CborOutput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 16 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 16 tests.
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"test_cbor_encode" end time: May 26 22:32 EDT
+"test_cbor_encode" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/4 Testing: test_cbor_device_info
+2/4 Test: test_cbor_device_info
+Command: "/home/mc/dev/esphome-coap-server-tests/build/test_cbor_device_info"
+Directory: /home/mc/dev/esphome-coap-server-tests/build
+"test_cbor_device_info" start time: May 26 22:32 EDT
+Output:
+----------------------------------------------------------
+Running main() from /home/mc/dev/esphome-coap-server-tests/build/_deps/googletest-src/googletest/src/gtest_main.cc
+[==========] Running 7 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 7 tests from DeviceInfoTest
+[ RUN      ] DeviceInfoTest.ContainsNameKey
+[       OK ] DeviceInfoTest.ContainsNameKey (0 ms)
+[ RUN      ] DeviceInfoTest.ContainsFriendlyName
+[       OK ] DeviceInfoTest.ContainsFriendlyName (0 ms)
+[ RUN      ] DeviceInfoTest.ContainsVersion
+[       OK ] DeviceInfoTest.ContainsVersion (0 ms)
+[ RUN      ] DeviceInfoTest.ContainsModel
+[       OK ] DeviceInfoTest.ContainsModel (0 ms)
+[ RUN      ] DeviceInfoTest.ReturnsNonZeroLength
+[       OK ] DeviceInfoTest.ReturnsNonZeroLength (0 ms)
+[ RUN      ] DeviceInfoTest.FriendlyNameOmittedWhenEmpty
+[       OK ] DeviceInfoTest.FriendlyNameOmittedWhenEmpty (0 ms)
+[ RUN      ] DeviceInfoTest.PingIntervalReflectsServerSetting
+[       OK ] DeviceInfoTest.PingIntervalReflectsServerSetting (0 ms)
+[----------] 7 tests from DeviceInfoTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 7 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 7 tests.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"test_cbor_device_info" end time: May 26 22:32 EDT
+"test_cbor_device_info" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/4 Testing: test_oscore_crypto
+3/4 Test: test_oscore_crypto
+Command: "/home/mc/dev/esphome-coap-server-tests/build/test_oscore_crypto"
+Directory: /home/mc/dev/esphome-coap-server-tests/build
+"test_oscore_crypto" start time: May 26 22:32 EDT
+Output:
+----------------------------------------------------------
+Running main() from /home/mc/dev/esphome-coap-server-tests/build/_deps/googletest-src/googletest/src/gtest_main.cc
+[==========] Running 9 tests from 2 test suites.
+[----------] Global test environment set-up.
+[----------] 4 tests from OscoreNonce
+[ RUN      ] OscoreNonce.AllZerosGivesCommonIv
+[       OK ] OscoreNonce.AllZerosGivesCommonIv (0 ms)
+[ RUN      ] OscoreNonce.PivRightAlignedInLastFiveBytes
+[       OK ] OscoreNonce.PivRightAlignedInLastFiveBytes (0 ms)
+[ RUN      ] OscoreNonce.KidLenInFirstByte
+[       OK ] OscoreNonce.KidLenInFirstByte (0 ms)
+[ RUN      ] OscoreNonce.XorWithCommonIv
+[       OK ] OscoreNonce.XorWithCommonIv (0 ms)
+[----------] 4 tests from OscoreNonce (0 ms total)
+
+[----------] 5 tests from OscoreAad
+[ RUN      ] OscoreAad.NonZeroOutput
+[       OK ] OscoreAad.NonZeroOutput (0 ms)
+[ RUN      ] OscoreAad.StartsWithCborArray3
+[       OK ] OscoreAad.StartsWithCborArray3 (0 ms)
+[ RUN      ] OscoreAad.ContainsEncrypt0String
+[       OK ] OscoreAad.ContainsEncrypt0String (0 ms)
+[ RUN      ] OscoreAad.EmptyPivAllowed
+[       OK ] OscoreAad.EmptyPivAllowed (0 ms)
+[ RUN      ] OscoreAad.BufferTooSmallReturnsZero
+[       OK ] OscoreAad.BufferTooSmallReturnsZero (0 ms)
+[----------] 5 tests from OscoreAad (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 9 tests from 2 test suites ran. (0 ms total)
+[  PASSED  ] 9 tests.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"test_oscore_crypto" end time: May 26 22:32 EDT
+"test_oscore_crypto" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/4 Testing: test_oscore_keys
+4/4 Test: test_oscore_keys
+Command: "/home/mc/dev/esphome-coap-server-tests/build/test_oscore_keys"
+Directory: /home/mc/dev/esphome-coap-server-tests/build
+"test_oscore_keys" start time: May 26 22:32 EDT
+Output:
+----------------------------------------------------------
+Running main() from /home/mc/dev/esphome-coap-server-tests/build/_deps/googletest-src/googletest/src/gtest_main.cc
+[==========] Running 5 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 5 tests from OscoreKeyDerivationTest
+[ RUN      ] OscoreKeyDerivationTest.SenderKeyMatchesRfc8613C1_1
+[I][coap_server] OSCORE keys derived
+[       OK ] OscoreKeyDerivationTest.SenderKeyMatchesRfc8613C1_1 (1 ms)
+[ RUN      ] OscoreKeyDerivationTest.RecipientKeyMatchesRfc8613C1_1
+[I][coap_server] OSCORE keys derived
+[       OK ] OscoreKeyDerivationTest.RecipientKeyMatchesRfc8613C1_1 (0 ms)
+[ RUN      ] OscoreKeyDerivationTest.CommonIvMatchesRfc8613C1_1
+[I][coap_server] OSCORE keys derived
+[       OK ] OscoreKeyDerivationTest.CommonIvMatchesRfc8613C1_1 (0 ms)
+[ RUN      ] OscoreKeyDerivationTest.DifferentSenderRecipientIdsProduceDifferentKeys
+[I][coap_server] OSCORE keys derived
+[       OK ] OscoreKeyDerivationTest.DifferentSenderRecipientIdsProduceDifferentKeys (0 ms)
+[ RUN      ] OscoreKeyDerivationTest.KeyMaterialClearedAfterDerivation
+[I][coap_server] OSCORE keys derived
+[       OK ] OscoreKeyDerivationTest.KeyMaterialClearedAfterDerivation (0 ms)
+[----------] 5 tests from OscoreKeyDerivationTest (1 ms total)
+
+[----------] Global test environment tear-down
+[==========] 5 tests from 1 test suite ran. (1 ms total)
+[  PASSED  ] 5 tests.
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"test_oscore_keys" end time: May 26 22:32 EDT
+"test_oscore_keys" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: May 26 22:32 EDT

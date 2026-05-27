@@ -1,0 +1,2 @@
+/usr/bin/ar qc libcoap_server_mocks.a CMakeFiles/coap_server_mocks.dir/mocks/mock_openthread.cpp.o CMakeFiles/coap_server_mocks.dir/mocks/mock_nvs.cpp.o CMakeFiles/coap_server_mocks.dir/mocks/mock_psa.cpp.o CMakeFiles/coap_server_mocks.dir/mocks/mock_app.cpp.o
+/usr/bin/ranlib libcoap_server_mocks.a

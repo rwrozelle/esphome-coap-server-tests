@@ -1,0 +1,1 @@
+/usr/bin/c++ -g CMakeFiles/test_oscore_keys.dir/tests/test_oscore_keys.cpp.o -o test_oscore_keys  libcoap_server_lib.a libcoap_server_mocks.a lib/libgtest.a lib/libgtest_main.a lib/libgmock.a /usr/lib/x86_64-linux-gnu/libcrypto.so lib/libgtest.a 
