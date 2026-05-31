@@ -838,6 +838,51 @@ TEST(CoapServerNetConObserve, NonObserverUnaffectedByAck) {
 }
 
 // ---------------------------------------------------------------------------
+// Ping boot signal: client identified by IP only, not IP+port
+//
+// aiocoap may send the /ping NON GET from a different source port than the
+// source port used for observe-GET subscriptions.  The client slot is created
+// when the observe GET arrives; the ping handler must find it by IP alone so
+// that boot_notified is set correctly and -1 is only returned once.
+// ---------------------------------------------------------------------------
+
+TEST(CoapServerNetPing, BootSignalSentOnceWhenPingPortDiffersFromObservePort) {
+  TestableCoapServerNet srv;
+  srv.init_resources(4);
+
+  sensor::Sensor s;
+  s.set_name("temp");
+  s.state = 22.5f;
+  uint16_t idx = 1;
+  srv.add_resource_for_test(EntityType::ENTITYTYPE_SENSOR, &s, true, idx);
+
+  // Subscribe (observe GET) from port 12345 — creates client slot
+  auto sub = make_coap_get("fp/1/g/1", 1, true, 0);
+  srv.inject(sub.data(), sub.size(), make_peer(12345));
+
+  // First ping from a DIFFERENT port (9999) — must return -1 (first boot contact)
+  auto ping1 = make_coap_get("ping", 2);
+  srv.inject(ping1.data(), ping1.size(), make_peer(9999));
+  ASSERT_GE(srv.last_sent.size(), 5u);
+  // Payload is {2: -1} = 0xa1 0x02 0x20 (3 bytes after payload marker 0xFF)
+  auto it = std::find(srv.last_sent.begin(), srv.last_sent.end(), 0xFF);
+  ASSERT_NE(it, srv.last_sent.end());
+  std::vector<uint8_t> payload1(it + 1, srv.last_sent.end());
+  ASSERT_EQ(payload1.size(), 3u);
+  EXPECT_EQ(payload1[2], 0x20u);  // CBOR integer -1
+
+  // Second ping from the same different port — must NOT return -1 (boot_notified=true)
+  auto ping2 = make_coap_get("ping", 3);
+  srv.inject(ping2.data(), ping2.size(), make_peer(9999));
+  ASSERT_GE(srv.last_sent.size(), 5u);
+  it = std::find(srv.last_sent.begin(), srv.last_sent.end(), 0xFF);
+  ASSERT_NE(it, srv.last_sent.end());
+  std::vector<uint8_t> payload2(it + 1, srv.last_sent.end());
+  ASSERT_GE(payload2.size(), 3u);
+  EXPECT_NE(payload2[2], 0x20u);  // Not -1 — uptime value
+}
+
+// ---------------------------------------------------------------------------
 // RFC 7252 §4.4: initial message ID must be random
 // ---------------------------------------------------------------------------
 
