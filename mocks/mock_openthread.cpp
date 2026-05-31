@@ -2,10 +2,23 @@
 #include "openthread/ip6.h"
 #include <cstdio>
 #include <cstring>
+#include <string>
 
 // Minimal stub implementations of OpenThread CoAP API for host unit tests.
 // Tests that need to verify CoAP interactions can replace these with gmock objects
 // using the link-seam pattern (extern pointer + override in test body).
+
+// Response capture — written by otCoapSendResponse, read by test helpers below
+static uint8_t g_last_response_buf[2048];
+static uint16_t g_last_response_len = 0;
+static int g_last_response_code = 0;
+
+void mock_ot_reset_last_response() { g_last_response_len = 0; }
+uint16_t mock_ot_last_response_len() { return g_last_response_len; }
+std::string mock_ot_last_response_str() {
+  return std::string(reinterpret_cast<char *>(g_last_response_buf), g_last_response_len);
+}
+int mock_ot_last_response_code() { return g_last_response_code; }
 
 namespace {
 
@@ -145,7 +158,12 @@ otError otCoapOptionIteratorGetOptionUintValue(otCoapOptionIterator * /*it*/, ui
 
 otError otCoapOptionIteratorGetOptionValue(otCoapOptionIterator * /*it*/, void * /*val*/) { return OT_ERROR_NONE; }
 
-otError otCoapSendResponse(otInstance * /*instance*/, otMessage * /*msg*/, const otMessageInfo * /*info*/) {
+otError otCoapSendResponse(otInstance * /*instance*/, otMessage *msg, const otMessageInfo * /*info*/) {
+  FakeMessage *m = reinterpret_cast<FakeMessage *>(msg);
+  g_last_response_len = m->len;
+  g_last_response_code = static_cast<int>(m->code);
+  if (m->len > 0)
+    memcpy(g_last_response_buf, m->buf, m->len);
   return OT_ERROR_NONE;
 }
 

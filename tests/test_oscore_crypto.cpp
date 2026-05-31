@@ -12,19 +12,21 @@ namespace esphome::coap_server {
 // Expose protected static methods via subclass
 class TestableCoapServer : public CoapServer {
  public:
+  void on_entity_update(EntityBase *) override {}
+
   static void build_nonce(const uint8_t *piv, uint8_t piv_len, const uint8_t *kid, uint8_t kid_len,
                           const uint8_t *common_iv, uint8_t out[13]) {
-    oscore_build_nonce_(piv, piv_len, kid, kid_len, common_iv, out);
+    oscore_build_nonce(piv, piv_len, kid, kid_len, common_iv, out);
   }
 
   static size_t build_aad(const uint8_t *kid, uint8_t kid_len, const uint8_t *piv, uint8_t piv_len, uint8_t *buf,
                           size_t buf_len) {
-    return oscore_build_aad_(kid, kid_len, piv, piv_len, buf, buf_len);
+    return oscore_build_aad(kid, kid_len, piv, piv_len, buf, buf_len);
   }
 };
 
 // ---------------------------------------------------------------------------
-// oscore_build_nonce_
+// oscore_build_nonce
 // ---------------------------------------------------------------------------
 
 TEST(OscoreNonce, AllZerosGivesCommonIv) {
@@ -73,7 +75,7 @@ TEST(OscoreNonce, XorWithCommonIv) {
 }
 
 // ---------------------------------------------------------------------------
-// oscore_build_aad_
+// oscore_build_aad
 // ---------------------------------------------------------------------------
 
 TEST(OscoreAad, NonZeroOutput) {

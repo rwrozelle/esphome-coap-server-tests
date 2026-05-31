@@ -4,6 +4,7 @@
 #include <cstring>
 #include <vector>
 #include "esphome/core/helpers.h"
+#include "esphome/core/device.h"
 
 // Forward declarations so that Application can hold pointers without circular includes
 namespace esphome::sensor { class Sensor; }
@@ -40,10 +41,17 @@ class Application {
   std::vector<valve::Valve *> &get_valves() { return valves_; }
   std::vector<button::Button *> &get_buttons() { return buttons_; }
 
+#ifdef USE_DEVICES
+  std::vector<Device *> &get_devices() { return devices_; }
+#endif
+
   void reset_entities() {
     sensors_.clear(); switches_.clear(); binary_sensors_.clear();
     text_sensors_.clear(); numbers_.clear(); locks_.clear();
     valves_.clear(); buttons_.clear();
+#ifdef USE_DEVICES
+    devices_.clear();
+#endif
   }
 
  private:
@@ -59,6 +67,9 @@ class Application {
   std::vector<lock::Lock *> locks_;
   std::vector<valve::Valve *> valves_;
   std::vector<button::Button *> buttons_;
+#ifdef USE_DEVICES
+  std::vector<Device *> devices_;
+#endif
 };
 
 extern Application App;  // defined in mock_app.cpp

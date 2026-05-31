@@ -18,6 +18,8 @@ static inline uint32_t millis() {
 
 namespace esphome {
 
+inline uint32_t random_uint32() { return (uint32_t) rand(); }
+
 // ---------------------------------------------------------------------------
 // StringRef — immutable view of a string (const char * + length)
 // ---------------------------------------------------------------------------

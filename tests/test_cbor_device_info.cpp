@@ -1,4 +1,4 @@
-// Tests for CoapServer::encode_device_info_ with a configurable Application stub.
+// Tests for CoapServer::encode_device_info with a configurable Application stub.
 
 #include <gtest/gtest.h>
 #include <cstdint>
@@ -12,8 +12,9 @@ namespace esphome::coap_server {
 // Expose the protected static method
 class TestableCoapServer : public CoapServer {
  public:
+  void on_entity_update(EntityBase *) override {}
   static size_t encode_info(uint8_t *buf, size_t len, CoapServer *srv) {
-    return encode_device_info_(buf, len, srv);
+    return encode_device_info(buf, len, srv);
   }
 };
 
@@ -53,6 +54,42 @@ static const uint8_t *find_cbor_text_value(const uint8_t *buf, size_t len, const
     i += hdr + klen;
   }
   return nullptr;
+}
+
+// Helper: find a CBOR unsigned-integer value by text-string key.
+// Returns true and sets *out if the key is found with a uint value.
+static bool find_cbor_uint_value(const uint8_t *buf, size_t len, const char *key, uint64_t *out) {
+  size_t key_len = strlen(key);
+  for (size_t i = 0; i + 1 < len;) {
+    if ((buf[i] & 0xe0u) != 0x60u) { i++; continue; }
+    size_t klen;
+    size_t hdr = 1;
+    if ((buf[i] & 0x1fu) <= 23u) {
+      klen = buf[i] & 0x1fu;
+    } else if (buf[i] == 0x78u && i + 2 < len) {
+      klen = buf[i + 1];
+      hdr = 2;
+    } else {
+      i++;
+      continue;
+    }
+    if (i + hdr + klen < len && klen == key_len && memcmp(buf + i + hdr, key, key_len) == 0) {
+      size_t vi = i + hdr + klen;
+      if (vi >= len) return false;
+      uint8_t b = buf[vi];
+      if ((b & 0xe0u) != 0x00u) return false;  // not a uint
+      uint8_t info = b & 0x1fu;
+      if (info <= 23u) { *out = info; return true; }
+      if (info == 0x18u && vi + 1 < len) { *out = buf[vi + 1]; return true; }
+      if (info == 0x19u && vi + 2 < len) {
+        *out = (static_cast<uint64_t>(buf[vi + 1]) << 8) | buf[vi + 2];
+        return true;
+      }
+      return false;
+    }
+    i += hdr + klen;
+  }
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -132,6 +169,25 @@ TEST_F(DeviceInfoTest, PingIntervalReflectsServerSetting) {
   // Verify the map was encoded without error (detailed uint parsing omitted;
   // tested functionally by ensuring non-zero output).
   EXPECT_GT(len, 0u);
+}
+
+TEST_F(DeviceInfoTest, ObserveRetryDefaultIsZero) {
+  size_t len = TestableCoapServer::encode_info(buf_, sizeof(buf_), &srv_);
+  ASSERT_GT(len, 0u);
+  uint64_t val = 99;
+  bool found = find_cbor_uint_value(buf_, len, "observe_retry", &val);
+  ASSERT_TRUE(found);
+  EXPECT_EQ(val, 0u);
+}
+
+TEST_F(DeviceInfoTest, ObserveRetryReflectsConfiguredValue) {
+  srv_.set_observe_retry(3);
+  size_t len = TestableCoapServer::encode_info(buf_, sizeof(buf_), &srv_);
+  ASSERT_GT(len, 0u);
+  uint64_t val = 99;
+  bool found = find_cbor_uint_value(buf_, len, "observe_retry", &val);
+  ASSERT_TRUE(found);
+  EXPECT_EQ(val, 3u);
 }
 
 }  // namespace esphome::coap_server

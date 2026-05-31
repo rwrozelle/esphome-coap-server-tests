@@ -20,6 +20,7 @@ class ValveCall {
   ValveCall &set_command(const char * /*cmd*/) { return *this; }
   ValveCall &set_position(float pos) { position_ = pos; return *this; }
   ValveCall &set_stop(bool s) { stop_ = s; return *this; }
+  int get_cmd() const { return cmd_; }
   void perform();
  private:
   Valve *parent_;

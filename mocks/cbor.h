@@ -196,15 +196,25 @@ static inline bool cbor_value_is_double(const CborValue *v) {
 static inline bool cbor_value_is_half_float(const CborValue *v) {
   return !v->at_end && v->offset < v->buf_len && v->buf[v->offset] == 0xf9u;
 }
-static inline bool cbor_value_at_end(const CborValue *v) { return v->at_end || v->offset >= v->buf_len; }
+static inline bool cbor_value_is_array(const CborValue *v) {
+  if (v->at_end || v->offset >= v->buf_len) return false;
+  return (v->buf[v->offset] >> 5u) == 4u;
+}
+static inline bool cbor_value_is_text_string(const CborValue *v) {
+  if (v->at_end || v->offset >= v->buf_len) return false;
+  return (v->buf[v->offset] >> 5u) == 3u;
+}
+static inline bool cbor_value_at_end(const CborValue *v) {
+  if (v->at_end || v->offset >= v->buf_len) return true;
+  return v->buf[v->offset] == 0xFFu;  // CBOR break byte closes indefinite-length containers
+}
 
 static inline CborError cbor_value_enter_container(CborValue *container, CborValue *child) {
-  if (!cbor_value_is_map(container)) return CborErrorUnknownType;
-  // Skip the map header byte (count is embedded but we iterate until end)
-  size_t off = container->offset;
-  off++;  // skip major/count byte (we ignore count, iterate by position)
+  uint8_t major = cbor_major_(container);
+  if (major != 4u && major != 5u) return CborErrorUnknownType;  // must be array or map
   *child = *container;
-  child->offset = off;
+  child->offset = container->offset + 1;  // skip the header byte
+  child->at_end = false;
   return CborNoError;
 }
 
@@ -213,7 +223,7 @@ static inline CborError cbor_value_get_int(CborValue *v, int *out) {
   uint8_t major = v->buf[v->offset] >> 5u;
   CborValue tmp = *v;
   uint64_t n = cbor_read_uint_(&tmp);
-  *v = tmp;  // advance past the int
+  // do NOT advance v — caller must call cbor_value_advance separately
   if (major == 1u)
     *out = -(int) (n + 1);
   else
@@ -226,7 +236,7 @@ static inline CborError cbor_value_get_int64(CborValue *v, int64_t *out) {
   uint8_t major = v->buf[v->offset] >> 5u;
   CborValue tmp = *v;
   uint64_t n = cbor_read_uint_(&tmp);
-  *v = tmp;
+  // do NOT advance v — caller must call cbor_value_advance separately
   if (major == 1u)
     *out = -(int64_t)(n + 1);
   else
@@ -237,7 +247,7 @@ static inline CborError cbor_value_get_int64(CborValue *v, int64_t *out) {
 static inline CborError cbor_value_get_boolean(CborValue *v, bool *out) {
   if (!cbor_value_is_boolean(v)) return CborErrorUnknownType;
   *out = (v->buf[v->offset] == 0xf5u);
-  v->offset++;
+  // do NOT advance v — caller must call cbor_value_advance separately
   return CborNoError;
 }
 
@@ -248,7 +258,7 @@ static inline CborError cbor_value_get_double(CborValue *v, double *out) {
     float f;
     std::memcpy(&f, &bits, 4);
     *out = (double) f;
-    v->offset += 5;
+    // do NOT advance v — caller must call cbor_value_advance separately
     return CborNoError;
   }
   return CborErrorUnknownType;

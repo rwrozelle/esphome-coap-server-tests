@@ -55,7 +55,10 @@ class TestValve : public valve::Valve {
 // Expose protected cbor_output_
 class TestableCoapServer : public CoapServer {
  public:
-  size_t encode(uint8_t *buf, ehCoapResource *res) { return cbor_output_(buf, res); }
+  void on_entity_update(EntityBase *) override {}
+  size_t encode(uint8_t *buf, size_t buf_len, ehCoapResource *res) {
+    return cbor_output_(buf, buf_len, res->entity, res->type);
+  }
 };
 
 // ---------------------------------------------------------------------------
@@ -89,7 +92,7 @@ TEST(CborOutput, SensorFloat) {
   sensor::Sensor s;
   s.state = 1.5f;
   auto r = make_resource(ENTITYTYPE_SENSOR, &s);
-  size_t len = srv.encode(buf, &r);
+  size_t len = srv.encode(buf, sizeof(buf), &r);
   // {2: 1.5f} => 0xa1 0x02 0xfa <float32>
   ASSERT_EQ(len, 7u);
   EXPECT_EQ(buf[0], 0xa1u);
@@ -104,7 +107,7 @@ TEST(CborOutput, SensorNaN) {
   sensor::Sensor s;
   s.state = std::numeric_limits<float>::quiet_NaN();
   auto r = make_resource(ENTITYTYPE_SENSOR, &s);
-  size_t len = srv.encode(buf, &r);
+  size_t len = srv.encode(buf, sizeof(buf), &r);
   // {3: "NA"} => 0xa1 0x03 0x62 'N' 'A'
   ASSERT_EQ(len, 5u);
   EXPECT_EQ(buf[1], 0x03u);
@@ -124,7 +127,7 @@ TEST(CborOutput, SwitchTrue) {
   TestSwitch sw;
   sw.state = true;
   auto r = make_resource(ENTITYTYPE_SWITCH, &sw);
-  size_t len = srv.encode(buf, &r);
+  size_t len = srv.encode(buf, sizeof(buf), &r);
   // {4: true} => 0xa1 0x04 0xf5
   ASSERT_EQ(len, 3u);
   EXPECT_EQ(buf[0], 0xa1u);
@@ -138,7 +141,7 @@ TEST(CborOutput, SwitchFalse) {
   TestSwitch sw;
   sw.state = false;
   auto r = make_resource(ENTITYTYPE_SWITCH, &sw);
-  size_t len = srv.encode(buf, &r);
+  size_t len = srv.encode(buf, sizeof(buf), &r);
   ASSERT_EQ(len, 3u);
   EXPECT_EQ(buf[2], 0xf4u);
 }
@@ -155,7 +158,7 @@ TEST(CborOutput, BinarySensorTrue) {
   binary_sensor::BinarySensor bs;
   bs.state = true;
   auto r = make_resource(ENTITYTYPE_BINARY_SENSOR, &bs);
-  size_t len = srv.encode(buf, &r);
+  size_t len = srv.encode(buf, sizeof(buf), &r);
   ASSERT_EQ(len, 3u);
   EXPECT_EQ(buf[1], 0x04u);
   EXPECT_EQ(buf[2], 0xf5u);
@@ -173,7 +176,7 @@ TEST(CborOutput, TextSensorValue) {
   text_sensor::TextSensor ts;
   ts.state = "hi";
   auto r = make_resource(ENTITYTYPE_TEXT_SENSOR, &ts);
-  size_t len = srv.encode(buf, &r);
+  size_t len = srv.encode(buf, sizeof(buf), &r);
   ASSERT_EQ(len, 5u);
   EXPECT_EQ(buf[1], 0x03u);
   EXPECT_EQ(buf[3], (uint8_t) 'h');
@@ -186,7 +189,7 @@ TEST(CborOutput, TextSensorEmpty) {
   text_sensor::TextSensor ts;
   ts.state = "";
   auto r = make_resource(ENTITYTYPE_TEXT_SENSOR, &ts);
-  size_t len = srv.encode(buf, &r);
+  size_t len = srv.encode(buf, sizeof(buf), &r);
   ASSERT_EQ(len, 5u);
   EXPECT_EQ(buf[3], (uint8_t) 'N');
   EXPECT_EQ(buf[4], (uint8_t) 'A');
@@ -204,7 +207,7 @@ TEST(CborOutput, NumberFloat) {
   TestNumber n;
   n.state = 0.5f;
   auto r = make_resource(ENTITYTYPE_NUMBER, &n);
-  size_t len = srv.encode(buf, &r);
+  size_t len = srv.encode(buf, sizeof(buf), &r);
   ASSERT_EQ(len, 7u);
   EXPECT_EQ(buf[1], 0x02u);
   EXPECT_FLOAT_EQ(decoded_float(buf, 3), 0.5f);
@@ -222,7 +225,7 @@ TEST(CborOutput, LockNone) {
   TestLock lk;
   lk.state = lock::LOCK_STATE_NONE;
   auto r = make_resource(ENTITYTYPE_LOCK, &lk);
-  size_t len = srv.encode(buf, &r);
+  size_t len = srv.encode(buf, sizeof(buf), &r);
   // {2: 0u} => 0xa1 0x02 0x00
   ASSERT_EQ(len, 3u);
   EXPECT_EQ(buf[0], 0xa1u);
@@ -236,7 +239,7 @@ TEST(CborOutput, LockLocked) {
   TestLock lk;
   lk.state = lock::LOCK_STATE_LOCKED;
   auto r = make_resource(ENTITYTYPE_LOCK, &lk);
-  size_t len = srv.encode(buf, &r);
+  size_t len = srv.encode(buf, sizeof(buf), &r);
   ASSERT_EQ(len, 3u);
   EXPECT_EQ(buf[2], 0x01u);
 }
@@ -247,7 +250,7 @@ TEST(CborOutput, LockUnlocked) {
   TestLock lk;
   lk.state = lock::LOCK_STATE_UNLOCKED;
   auto r = make_resource(ENTITYTYPE_LOCK, &lk);
-  size_t len = srv.encode(buf, &r);
+  size_t len = srv.encode(buf, sizeof(buf), &r);
   ASSERT_EQ(len, 3u);
   EXPECT_EQ(buf[2], 0x02u);
 }
@@ -258,9 +261,53 @@ TEST(CborOutput, LockJammed) {
   TestLock lk;
   lk.state = lock::LOCK_STATE_JAMMED;
   auto r = make_resource(ENTITYTYPE_LOCK, &lk);
-  size_t len = srv.encode(buf, &r);
+  size_t len = srv.encode(buf, sizeof(buf), &r);
   ASSERT_EQ(len, 3u);
   EXPECT_EQ(buf[2], 0x03u);
+}
+
+TEST(CborOutput, LockLocking) {
+  TestableCoapServer srv;
+  uint8_t buf[8]{};
+  TestLock lk;
+  lk.state = lock::LOCK_STATE_LOCKING;
+  auto r = make_resource(ENTITYTYPE_LOCK, &lk);
+  size_t len = srv.encode(buf, sizeof(buf), &r);
+  ASSERT_EQ(len, 3u);
+  EXPECT_EQ(buf[2], 0x04u);
+}
+
+TEST(CborOutput, LockUnlocking) {
+  TestableCoapServer srv;
+  uint8_t buf[8]{};
+  TestLock lk;
+  lk.state = lock::LOCK_STATE_UNLOCKING;
+  auto r = make_resource(ENTITYTYPE_LOCK, &lk);
+  size_t len = srv.encode(buf, sizeof(buf), &r);
+  ASSERT_EQ(len, 3u);
+  EXPECT_EQ(buf[2], 0x05u);
+}
+
+TEST(CborOutput, LockOpening) {
+  TestableCoapServer srv;
+  uint8_t buf[8]{};
+  TestLock lk;
+  lk.state = lock::LOCK_STATE_OPENING;
+  auto r = make_resource(ENTITYTYPE_LOCK, &lk);
+  size_t len = srv.encode(buf, sizeof(buf), &r);
+  ASSERT_EQ(len, 3u);
+  EXPECT_EQ(buf[2], 0x06u);
+}
+
+TEST(CborOutput, LockOpen) {
+  TestableCoapServer srv;
+  uint8_t buf[8]{};
+  TestLock lk;
+  lk.state = lock::LOCK_STATE_OPEN;
+  auto r = make_resource(ENTITYTYPE_LOCK, &lk);
+  size_t len = srv.encode(buf, sizeof(buf), &r);
+  ASSERT_EQ(len, 3u);
+  EXPECT_EQ(buf[2], 0x07u);
 }
 #endif
 
@@ -275,7 +322,7 @@ TEST(CborOutput, ValveHalfOpen) {
   TestValve v;
   v.position = 0.5f;
   auto r = make_resource(ENTITYTYPE_VALVE, &v);
-  size_t len = srv.encode(buf, &r);
+  size_t len = srv.encode(buf, sizeof(buf), &r);
   // {2: 0.5f}
   ASSERT_EQ(len, 7u);
   EXPECT_EQ(buf[1], 0x02u);
@@ -288,7 +335,7 @@ TEST(CborOutput, ValveClosed) {
   TestValve v;
   v.position = 0.0f;
   auto r = make_resource(ENTITYTYPE_VALVE, &v);
-  size_t len = srv.encode(buf, &r);
+  size_t len = srv.encode(buf, sizeof(buf), &r);
   ASSERT_EQ(len, 7u);
   EXPECT_FLOAT_EQ(decoded_float(buf, 3), 0.0f);
 }
@@ -302,14 +349,14 @@ TEST(CborOutput, ButtonReturnsZero) {
   TestableCoapServer srv;
   uint8_t buf[8]{};
   auto r = make_resource(ENTITYTYPE_BUTTON, nullptr);
-  EXPECT_EQ(srv.encode(buf, &r), 0u);
+  EXPECT_EQ(srv.encode(buf, sizeof(buf), &r), 0u);
 }
 
 TEST(CborOutput, DeviceReturnsZero) {
   TestableCoapServer srv;
   uint8_t buf[8]{};
   auto r = make_resource(ENTITYTYPE_DEVICE, nullptr);
-  EXPECT_EQ(srv.encode(buf, &r), 0u);
+  EXPECT_EQ(srv.encode(buf, sizeof(buf), &r), 0u);
 }
 
 }  // namespace esphome::coap_server

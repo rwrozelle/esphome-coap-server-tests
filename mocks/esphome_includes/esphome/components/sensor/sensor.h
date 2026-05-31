@@ -11,7 +11,7 @@ class Sensor : public EntityBase {
 
   void set_unit_of_measurement(const char *uom) { uom_ = uom; }
 
-  StringRef get_unit_of_measurement_ref() const { return StringRef(uom_); }
+  StringRef get_unit_of_measurement_ref() const override { return StringRef(uom_); }
 
   const char *get_device_class_to(std::span<char, MAX_DEVICE_CLASS_LENGTH> buffer) const override {
     if (device_class_) {

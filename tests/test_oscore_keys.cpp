@@ -20,6 +20,7 @@ namespace esphome::coap_server {
 // Expose protected oscore_derive_keys_ and internal key buffers
 class TestableCoapServer : public CoapServer {
  public:
+  void on_entity_update(EntityBase *) override {}
   bool derive_keys() { return oscore_derive_keys_(); }
   const uint8_t *sender_key() const { return oscore_sender_key_; }
   const uint8_t *recipient_key() const { return oscore_recipient_key_; }
