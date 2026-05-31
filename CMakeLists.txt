@@ -169,3 +169,13 @@ add_coap_test(test_link_format       tests/test_link_format.cpp)
 add_coap_test(test_entity_commands   tests/test_entity_commands.cpp)
 add_coap_test(test_log_cbor          tests/test_log_cbor.cpp)
 add_coap_test(test_oscore_round_trip tests/test_oscore_round_trip.cpp)
+
+# Standalone test for the real cbor.c/cbor.h — does not use mocks/cbor.h.
+# Compiles cbor.c directly so the real encoder and parser are exercised.
+add_executable(test_cbor_primitives
+  tests/test_cbor_primitives.cpp
+  ${COAP_SERVER_SRC}/cbor.cpp
+)
+target_include_directories(test_cbor_primitives PRIVATE ${COAP_SERVER_SRC})
+target_link_libraries(test_cbor_primitives PRIVATE gtest gtest_main m)
+add_test(NAME test_cbor_primitives COMMAND test_cbor_primitives)
