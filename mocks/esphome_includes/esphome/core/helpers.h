@@ -79,6 +79,47 @@ class FixedVector {
 };
 
 // ---------------------------------------------------------------------------
+// StaticRingBuffer — compile-time-sized ring buffer, no dynamic allocation
+// ---------------------------------------------------------------------------
+template<typename T, size_t N> class StaticRingBuffer {
+  using index_type = std::conditional_t<(N <= std::numeric_limits<uint8_t>::max()), uint8_t, uint16_t>;
+
+ public:
+  bool push(const T &value) {
+    if (this->count_ >= N)
+      return false;
+    this->data_[this->tail_] = value;
+    this->tail_ = (this->tail_ + 1) % N;
+    ++this->count_;
+    return true;
+  }
+
+  void pop() {
+    if (this->count_ > 0) {
+      this->head_ = (this->head_ + 1) % N;
+      --this->count_;
+    }
+  }
+
+  T &front() { return this->data_[this->head_]; }
+  const T &front() const { return this->data_[this->head_]; }
+  index_type size() const { return this->count_; }
+  bool empty() const { return this->count_ == 0; }
+
+  void clear() {
+    this->head_ = 0;
+    this->tail_ = 0;
+    this->count_ = 0;
+  }
+
+ protected:
+  T data_[N];
+  index_type head_{0};
+  index_type tail_{0};
+  index_type count_{0};
+};
+
+// ---------------------------------------------------------------------------
 // LazyCallbackManager — deferred std::vector of callbacks
 // ---------------------------------------------------------------------------
 template<typename... Ts>

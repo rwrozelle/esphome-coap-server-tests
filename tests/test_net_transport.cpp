@@ -897,4 +897,118 @@ TEST(CoapServerNetSetup, InitialMsgIdIsRandomized) {
   EXPECT_NE(a.get_next_msg_id(), b.get_next_msg_id());
 }
 
+// ---------------------------------------------------------------------------
+// TWT queue tests
+// ---------------------------------------------------------------------------
+
+#ifdef USE_WIFI_TWT
+
+struct TwtTestNet : CoapServerNet {
+  void init_resources(size_t n) {
+    resources_.init(n);
+    uint8_t tmp[LINK_FORMAT_MAX_SIZE];
+    size_t size = build_link_format(tmp, sizeof(tmp));
+    size_t actual = std::min(size, LINK_FORMAT_MAX_SIZE);
+    link_format_buf_ = std::make_unique<uint8_t[]>(actual);
+    memcpy(link_format_buf_.get(), tmp, actual);
+    link_format_size_ = actual;
+  }
+
+  void inject(const uint8_t *buf, size_t len, const struct sockaddr_in6 &peer) {
+    process_datagram_(buf, len, &peer);
+  }
+
+  void set_queuing(bool v) { this->twt_queuing_enabled_ = v; }
+  bool is_queuing() const { return this->twt_queuing_enabled_; }
+  uint8_t queue_size() const { return this->twt_queue_.size(); }
+  bool queue_empty() const { return this->twt_queue_.empty(); }
+  uint16_t queue_front_peer_port() const { return this->twt_queue_.front().peer.sin6_port; }
+  void do_flush() { this->flush_twt_queue_(); }
+};
+
+TEST(CoapServerNetTwt, NotQueuedByDefault) {
+  TwtTestNet srv;
+  srv.init_resources(4);
+
+  auto raw = make_coap_get("ping");
+  srv.inject(raw.data(), raw.size(), make_peer());
+
+  EXPECT_TRUE(srv.queue_empty());
+}
+
+TEST(CoapServerNetTwt, QueuedWhenEnabled) {
+  TwtTestNet srv;
+  srv.init_resources(4);
+  srv.set_queuing(true);
+
+  auto raw = make_coap_get("ping");
+  srv.inject(raw.data(), raw.size(), make_peer());
+
+  EXPECT_GT(srv.queue_size(), 0u);
+}
+
+TEST(CoapServerNetTwt, FlushClearsQueue) {
+  TwtTestNet srv;
+  srv.init_resources(4);
+  srv.set_queuing(true);
+
+  auto raw = make_coap_get("ping");
+  srv.inject(raw.data(), raw.size(), make_peer());
+  EXPECT_GT(srv.queue_size(), 0u);
+
+  srv.do_flush();
+
+  EXPECT_TRUE(srv.queue_empty());
+}
+
+TEST(CoapServerNetTwt, FlushDisablesQueuing) {
+  // flush_twt_queue_() sets twt_queuing_enabled_=false before draining.
+  // Only fires when queue is non-empty; empty queue is a no-op.
+  TwtTestNet srv;
+  srv.init_resources(4);
+  srv.set_queuing(true);
+
+  auto raw = make_coap_get("ping");
+  srv.inject(raw.data(), raw.size(), make_peer());
+  EXPECT_GT(srv.queue_size(), 0u);
+
+  srv.do_flush();
+
+  EXPECT_FALSE(srv.is_queuing());
+}
+
+TEST(CoapServerNetTwt, DropOldestWhenFull) {
+  // Inject 9 packets into a depth-8 queue — the oldest should be dropped.
+  TwtTestNet srv;
+  srv.init_resources(4);
+  srv.set_queuing(true);
+
+  for (int i = 0; i < 9; i++) {
+    auto raw = make_coap_get("ping", static_cast<uint16_t>(i + 1));
+    srv.inject(raw.data(), raw.size(), make_peer());
+  }
+
+  EXPECT_EQ(srv.queue_size(), 8u);
+}
+
+TEST(CoapServerNetTwt, QueuePreservesDestinationPeer) {
+  TwtTestNet srv;
+  srv.init_resources(4);
+  srv.set_queuing(true);
+
+  auto peer_a = make_peer(10001);
+  auto peer_b = make_peer(10002);
+
+  auto raw_a = make_coap_get("ping", 1);
+  srv.inject(raw_a.data(), raw_a.size(), peer_a);
+
+  auto raw_b = make_coap_get("ping", 2);
+  srv.inject(raw_b.data(), raw_b.size(), peer_b);
+
+  EXPECT_EQ(srv.queue_size(), 2u);
+  EXPECT_EQ(srv.queue_front_peer_port(), peer_a.sin6_port);
+}
+
+#endif  // USE_WIFI_TWT
+
 }  // namespace esphome::coap_server

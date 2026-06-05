@@ -57,6 +57,7 @@ add_library(coap_server_mocks STATIC
   mocks/mock_nvs.cpp
   mocks/mock_psa.cpp
   mocks/mock_app.cpp
+  mocks/mock_wifi_twt.cpp
 )
 
 target_include_directories(coap_server_mocks PUBLIC
@@ -78,6 +79,7 @@ add_library(coap_server_lib STATIC
   ${COAP_SERVER_SRC}/coap_server.cpp
   ${COAP_SERVER_SRC}/coap_server_cbor.cpp
   ${COAP_SERVER_SRC}/coap_server_ot.cpp
+  ${COAP_SERVER_SRC}/cbor.cpp
 )
 
 target_include_directories(coap_server_lib PUBLIC
@@ -113,6 +115,15 @@ add_library(coap_server_net_lib STATIC
   ${COAP_SERVER_SRC}/coap_server.cpp
   ${COAP_SERVER_SRC}/coap_server_cbor.cpp
   ${COAP_SERVER_SRC}/coap_server_net.cpp
+  ${COAP_SERVER_SRC}/cbor.cpp
+)
+
+# Net lib variant without TWT — verifies non-TWT path still compiles and tests pass
+add_library(coap_server_net_lib_no_twt STATIC
+  ${COAP_SERVER_SRC}/coap_server.cpp
+  ${COAP_SERVER_SRC}/coap_server_cbor.cpp
+  ${COAP_SERVER_SRC}/coap_server_net.cpp
+  ${COAP_SERVER_SRC}/cbor.cpp
 )
 
 target_include_directories(coap_server_net_lib PUBLIC
@@ -122,6 +133,39 @@ target_include_directories(coap_server_net_lib PUBLIC
 )
 
 target_compile_definitions(coap_server_net_lib PUBLIC
+  USE_COAP_NET
+  USE_COAP_OSCORE
+  USE_WIFI_TWT
+  USE_SENSOR
+  USE_SWITCH
+  USE_BINARY_SENSOR
+  USE_TEXT_SENSOR
+  USE_NUMBER
+  USE_LOCK
+  USE_VALVE
+  USE_BUTTON
+  USE_LOGGER
+  USE_DEVICES
+  USE_COAP_SERVER_PORT=5683
+  USE_COAP_SERVER_MAX_CLIENTS=4
+  USE_COAP_SERVER_TWT_QUEUE_DEPTH=8
+  ESPHOME_BOARD="test"
+  ESPHOME_VERSION="test"
+  "final="
+)
+
+# Undefine USE_OPENTHREAD injected by the global add_compile_definitions
+target_compile_options(coap_server_net_lib PUBLIC -UUSE_OPENTHREAD)
+
+target_link_libraries(coap_server_net_lib PUBLIC coap_server_mocks)
+
+target_include_directories(coap_server_net_lib_no_twt PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/mocks
+  ${CMAKE_CURRENT_SOURCE_DIR}/mocks/esphome_includes
+  ${ESPHOME_SRC}
+)
+
+target_compile_definitions(coap_server_net_lib_no_twt PUBLIC
   USE_COAP_NET
   USE_COAP_OSCORE
   USE_SENSOR
@@ -141,10 +185,9 @@ target_compile_definitions(coap_server_net_lib PUBLIC
   "final="
 )
 
-# Undefine USE_OPENTHREAD injected by the global add_compile_definitions
-target_compile_options(coap_server_net_lib PUBLIC -UUSE_OPENTHREAD)
+target_compile_options(coap_server_net_lib_no_twt PUBLIC -UUSE_OPENTHREAD -UUSE_WIFI_TWT)
 
-target_link_libraries(coap_server_net_lib PUBLIC coap_server_mocks)
+target_link_libraries(coap_server_net_lib_no_twt PUBLIC coap_server_mocks)
 
 function(add_net_test name src)
   add_executable(${name} ${src})
@@ -159,7 +202,21 @@ function(add_net_test name src)
   add_test(NAME ${name} COMMAND ${name})
 endfunction()
 
+function(add_net_test_no_twt name src)
+  add_executable(${name} ${src})
+  target_include_directories(${name} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/mocks
+    ${CMAKE_CURRENT_SOURCE_DIR}/mocks/esphome_includes
+    ${ESPHOME_SRC}
+  )
+  target_compile_definitions(${name} PRIVATE "final=")
+  target_compile_options(${name} PRIVATE -UUSE_OPENTHREAD -UUSE_WIFI_TWT)
+  target_link_libraries(${name} PRIVATE coap_server_net_lib_no_twt coap_server_mocks gtest gtest_main gmock)
+  add_test(NAME ${name} COMMAND ${name})
+endfunction()
+
 add_net_test(test_net_transport tests/test_net_transport.cpp)
+add_net_test_no_twt(test_net_transport_no_twt tests/test_net_transport.cpp)
 
 add_coap_test(test_cbor_encode       tests/test_cbor_encode.cpp)
 add_coap_test(test_cbor_device_info  tests/test_cbor_device_info.cpp)
