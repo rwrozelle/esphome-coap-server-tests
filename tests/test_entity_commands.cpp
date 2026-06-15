@@ -323,6 +323,7 @@ TEST(CoapServerOTRepublish, ObservableEntityIsUpdated) {
   srv.push_resource(&sw, true);
 
   srv.republish_all();
+  srv.fire_timeouts();
 
   ASSERT_EQ(srv.updated.size(), 1u);
   EXPECT_EQ(srv.updated[0], &sw);
@@ -357,6 +358,7 @@ TEST(CoapServerOTRepublish, MultipleEntitiesAllUpdated) {
   srv.push_resource(&sw2, true);
 
   srv.republish_all();
+  srv.fire_timeouts();
 
   ASSERT_EQ(srv.updated.size(), 2u);
   EXPECT_EQ(srv.updated[0], &sw1);
