@@ -66,7 +66,19 @@ typedef enum {
 typedef enum {
   OT_COAP_OPTION_OBSERVE = 6,
   OT_COAP_OPTION_CONTENT_FORMAT = 12,
+  OT_COAP_OPTION_BLOCK2 = 23,
 } otCoapOptionNumber;
+
+// Block size exponent for RFC 7959 block-wise transfer
+typedef enum {
+  OT_COAP_BLOCK_SZX_16 = 0,
+  OT_COAP_BLOCK_SZX_32 = 1,
+  OT_COAP_BLOCK_SZX_64 = 2,
+  OT_COAP_BLOCK_SZX_128 = 3,
+  OT_COAP_BLOCK_SZX_256 = 4,
+  OT_COAP_BLOCK_SZX_512 = 5,
+  OT_COAP_BLOCK_SZX_1024 = 6,
+} otCoapBlockSzx;
 
 // ---------------------------------------------------------------------------
 // CoAP token
@@ -119,9 +131,20 @@ typedef struct otCoapResource {
   struct otCoapResource *mNext;
 } otCoapResource;
 
-// Block-wise transfer hook (RFC 7959 / OPENTHREAD_CONFIG_COAP_BLOCKWISE_TRANSFER_ENABLE)
+// Block-wise transfer hooks (RFC 7959 / OPENTHREAD_CONFIG_COAP_BLOCKWISE_TRANSFER_ENABLE)
 typedef otError (*otCoapBlockwiseTransmitHook)(void *aContext, uint8_t *aBlock, uint32_t aPosition,
                                               uint16_t *aBlockLength, bool *aMore);
+typedef otError (*otCoapBlockwiseReceiveHook)(void *aContext, uint8_t *aBlock, uint32_t aPosition,
+                                              uint16_t aBlockLength, bool aMore, uint32_t aTotalLength);
+
+typedef struct otCoapBlockwiseResource {
+  const char *mUriPath;
+  otCoapRequestHandler mHandler;
+  otCoapBlockwiseReceiveHook mReceiveHook;
+  otCoapBlockwiseTransmitHook mTransmitHook;
+  void *mContext;
+  struct otCoapBlockwiseResource *mNext;
+} otCoapBlockwiseResource;
 
 // ---------------------------------------------------------------------------
 // C function declarations — implemented in mock_openthread.cpp
@@ -183,6 +206,11 @@ const otCoapOption *otCoapOptionIteratorGetFirstOptionMatching(otCoapOptionItera
 const otCoapOption *otCoapOptionIteratorGetNextOptionMatching(otCoapOptionIterator *aIterator, uint16_t aNumber);
 otError otCoapOptionIteratorGetOptionUintValue(otCoapOptionIterator *aIterator, uint64_t *aValue);
 otError otCoapOptionIteratorGetOptionValue(otCoapOptionIterator *aIterator, void *aValue);
+
+otError otCoapMessageAppendBlock2Option(otMessage *aMessage, uint32_t aNum, bool aMore, otCoapBlockSzx aSize);
+
+void otCoapAddBlockWiseResource(otInstance *aInstance, otCoapBlockwiseResource *aResource);
+void otCoapRemoveBlockWiseResource(otInstance *aInstance, otCoapBlockwiseResource *aResource);
 
 otError otCoapSendResponse(otInstance *aInstance, otMessage *aMessage, const otMessageInfo *aMessageInfo);
 otError otCoapSendResponseBlockWise(otInstance *aInstance, otMessage *aMessage, const otMessageInfo *aMessageInfo,

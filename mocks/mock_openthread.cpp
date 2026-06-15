@@ -13,20 +13,57 @@ static uint8_t g_last_response_buf[4096];
 static uint16_t g_last_response_len = 0;
 static int g_last_response_code = 0;
 
-// Block-wise capture
+// Block-wise send capture
 static otCoapBlockwiseTransmitHook g_last_blockwise_hook = nullptr;
 static void *g_last_blockwise_ctx = nullptr;
 
-void mock_ot_reset_last_response() { g_last_response_len = 0; }
+// Inline (non-block-wise) send capture
+static bool g_inline_send_called = false;
+
+// Block2 option appended to response capture
+static bool g_response_has_block2 = false;
+static uint32_t g_response_block2_num = 0;
+static bool g_response_block2_more = false;
+static int g_response_block2_szx = 0;
+
+// Block2 in request simulation (set by test before invoking handler)
+static int g_request_block2_szx = -1;  // -1 means no Block2 in request
+
+// Block-wise resource registration capture
+static bool g_blockwise_resource_registered = false;
+static const char *g_blockwise_resource_uri = nullptr;
+
+void mock_ot_reset_last_response() { g_last_response_len = 0; g_inline_send_called = false; }
 uint16_t mock_ot_last_response_len() { return g_last_response_len; }
 std::string mock_ot_last_response_str() {
   return std::string(reinterpret_cast<char *>(g_last_response_buf), g_last_response_len);
 }
 int mock_ot_last_response_code() { return g_last_response_code; }
+bool mock_ot_inline_send_called() { return g_inline_send_called; }
 
-void mock_ot_reset_blockwise() { g_last_blockwise_hook = nullptr; g_last_blockwise_ctx = nullptr; }
+void mock_ot_reset_blockwise() {
+  g_last_blockwise_hook = nullptr;
+  g_last_blockwise_ctx = nullptr;
+  g_response_has_block2 = false;
+  g_response_block2_num = 0;
+  g_response_block2_more = false;
+  g_response_block2_szx = 0;
+  g_request_block2_szx = -1;
+  g_blockwise_resource_registered = false;
+  g_blockwise_resource_uri = nullptr;
+}
 bool mock_ot_blockwise_called() { return g_last_blockwise_hook != nullptr; }
 void *mock_ot_blockwise_ctx() { return g_last_blockwise_ctx; }
+
+bool mock_ot_response_has_block2() { return g_response_has_block2; }
+uint32_t mock_ot_response_block2_num() { return g_response_block2_num; }
+bool mock_ot_response_block2_more() { return g_response_block2_more; }
+int mock_ot_response_block2_szx() { return g_response_block2_szx; }
+
+void mock_ot_set_request_block2(int szx) { g_request_block2_szx = szx; }
+
+bool mock_ot_blockwise_resource_registered() { return g_blockwise_resource_registered; }
+const char *mock_ot_blockwise_resource_uri() { return g_blockwise_resource_uri; }
 
 namespace {
 
@@ -125,6 +162,21 @@ otError otCoapMessageAppendOption(otMessage * /*msg*/, uint16_t /*number*/, uint
   return OT_ERROR_NONE;
 }
 
+otError otCoapMessageAppendBlock2Option(otMessage * /*msg*/, uint32_t num, bool more, otCoapBlockSzx szx) {
+  g_response_has_block2 = true;
+  g_response_block2_num = num;
+  g_response_block2_more = more;
+  g_response_block2_szx = static_cast<int>(szx);
+  return OT_ERROR_NONE;
+}
+
+void otCoapAddBlockWiseResource(otInstance * /*instance*/, otCoapBlockwiseResource *resource) {
+  g_blockwise_resource_registered = true;
+  g_blockwise_resource_uri = resource ? resource->mUriPath : nullptr;
+}
+
+void otCoapRemoveBlockWiseResource(otInstance * /*instance*/, otCoapBlockwiseResource * /*resource*/) {}
+
 otError otCoapMessageAppendUriPathOptions(otMessage * /*msg*/, const char * /*uri*/) { return OT_ERROR_NONE; }
 
 otError otCoapMessageSetPayloadMarker(otMessage *msg) {
@@ -146,12 +198,16 @@ const uint8_t *otCoapMessageGetToken(const otMessage *msg) {
   return reinterpret_cast<const FakeMessage *>(msg)->token;
 }
 
+static otCoapOption g_block2_option{OT_COAP_OPTION_BLOCK2, 1};
+
 otError otCoapOptionIteratorInit(otCoapOptionIterator *it, const otMessage * /*msg*/) {
   memset(it, 0, sizeof(*it));
   return OT_ERROR_NONE;
 }
 
-const otCoapOption *otCoapOptionIteratorGetFirstOptionMatching(otCoapOptionIterator * /*it*/, uint16_t /*num*/) {
+const otCoapOption *otCoapOptionIteratorGetFirstOptionMatching(otCoapOptionIterator * /*it*/, uint16_t num) {
+  if (num == OT_COAP_OPTION_BLOCK2 && g_request_block2_szx >= 0)
+    return &g_block2_option;
   return nullptr;
 }
 
@@ -160,7 +216,11 @@ const otCoapOption *otCoapOptionIteratorGetNextOptionMatching(otCoapOptionIterat
 }
 
 otError otCoapOptionIteratorGetOptionUintValue(otCoapOptionIterator * /*it*/, uint64_t *val) {
-  *val = 0;
+  // Encode Block2(NUM=0, M=false, SZX) as the raw uint value: (0 << 4) | (0 << 3) | szx
+  if (g_request_block2_szx >= 0)
+    *val = static_cast<uint64_t>(g_request_block2_szx & 0x7);
+  else
+    *val = 0;
   return OT_ERROR_NONE;
 }
 
@@ -172,6 +232,7 @@ otError otCoapSendResponse(otInstance * /*instance*/, otMessage *msg, const otMe
   g_last_response_code = static_cast<int>(m->code);
   if (m->len > 0)
     memcpy(g_last_response_buf, m->buf, m->len);
+  g_inline_send_called = true;
   return OT_ERROR_NONE;
 }
 
