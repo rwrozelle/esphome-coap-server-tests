@@ -11,6 +11,9 @@ class Sensor : public EntityBase {
 
   void set_unit_of_measurement(const char *uom) { uom_ = uom; }
 
+  int8_t get_accuracy_decimals() const { return accuracy_decimals_; }
+  void set_accuracy_decimals(int8_t ad) { accuracy_decimals_ = ad; }
+
   StringRef get_unit_of_measurement_ref() const override { return StringRef(uom_); }
 
   const char *get_device_class_to(std::span<char, MAX_DEVICE_CLASS_LENGTH> buffer) const override {
@@ -28,6 +31,7 @@ class Sensor : public EntityBase {
  protected:
   const char *uom_{""};
   const char *device_class_{nullptr};
+  int8_t accuracy_decimals_{1};
 };
 
 }  // namespace esphome::sensor

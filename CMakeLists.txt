@@ -217,7 +217,10 @@ endfunction()
 
 add_net_test(test_net_transport tests/test_net_transport.cpp)
 add_net_test_no_twt(test_net_transport_no_twt tests/test_net_transport.cpp)
+add_net_test(test_blockwise_net tests/test_blockwise_net.cpp)
 
+add_coap_test(test_blockwise_source  tests/test_blockwise_source.cpp)
+add_coap_test(test_blockwise_ot      tests/test_blockwise_ot.cpp)
 add_coap_test(test_cbor_encode       tests/test_cbor_encode.cpp)
 add_coap_test(test_cbor_device_info  tests/test_cbor_device_info.cpp)
 add_coap_test(test_oscore_crypto     tests/test_oscore_crypto.cpp)

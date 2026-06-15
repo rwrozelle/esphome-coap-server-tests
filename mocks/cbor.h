@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <cstring>
 
-typedef enum { CborNoError = 0, CborErrorOutOfMemory = 1, CborErrorUnknownType = 2 } CborError;
+typedef enum { CBOR_NO_ERROR = 0, CBOR_ERROR_OUT_OF_MEMORY = 1, CBOR_ERROR_UNKNOWN_TYPE = 2 } CborError;
 
 struct CborEncoder {
   uint8_t *ptr;
@@ -15,16 +15,16 @@ struct CborEncoder {
 };
 
 static inline CborError cbor_write_byte_(CborEncoder *enc, uint8_t b) {
-  if (enc->ptr >= enc->end) return CborErrorOutOfMemory;
+  if (enc->ptr >= enc->end) return CBOR_ERROR_OUT_OF_MEMORY;
   *enc->ptr++ = b;
-  return CborNoError;
+  return CBOR_NO_ERROR;
 }
 
 static inline CborError cbor_write_bytes_(CborEncoder *enc, const void *data, size_t len) {
-  if (enc->ptr + len > enc->end) return CborErrorOutOfMemory;
+  if (enc->ptr + len > enc->end) return CBOR_ERROR_OUT_OF_MEMORY;
   std::memcpy(enc->ptr, data, len);
   enc->ptr += len;
-  return CborNoError;
+  return CBOR_NO_ERROR;
 }
 
 static inline void cbor_encoder_init(CborEncoder *enc, uint8_t *buf, size_t len, int /*flags*/) {
@@ -47,7 +47,7 @@ static inline CborError cbor_encoder_create_array(CborEncoder *enc, CborEncoder 
 
 static inline CborError cbor_encoder_close_container(CborEncoder *enc, CborEncoder *child) {
   enc->ptr = child->ptr;
-  return CborNoError;
+  return CBOR_NO_ERROR;
 }
 
 static inline size_t cbor_encoder_get_buffer_size(CborEncoder *enc, const uint8_t * /*buf*/) {
@@ -58,17 +58,17 @@ static inline CborError cbor_encode_uint(CborEncoder *enc, uint64_t val) {
   if (val <= 23u) return cbor_write_byte_(enc, (uint8_t) val);
   if (val <= 0xffu) {
     CborError e = cbor_write_byte_(enc, 0x18u);
-    if (e != CborNoError) return e;
+    if (e != CBOR_NO_ERROR) return e;
     return cbor_write_byte_(enc, (uint8_t) val);
   }
-  return CborErrorOutOfMemory;
+  return CBOR_ERROR_OUT_OF_MEMORY;
 }
 
 static inline CborError cbor_encode_int(CborEncoder *enc, int64_t val) {
   if (val >= 0) return cbor_encode_uint(enc, (uint64_t) val);
   uint64_t n = (uint64_t)(-(val + 1));
   if (n <= 23u) return cbor_write_byte_(enc, (uint8_t)(0x20u | (uint8_t) n));
-  return CborErrorOutOfMemory;
+  return CBOR_ERROR_OUT_OF_MEMORY;
 }
 
 static inline CborError cbor_encode_float(CborEncoder *enc, float val) {
@@ -88,12 +88,12 @@ static inline CborError cbor_encode_byte_string(CborEncoder *enc, const uint8_t 
     e = cbor_write_byte_(enc, (uint8_t)(0x40u | (uint8_t) len));
   } else if (len <= 0xffu) {
     e = cbor_write_byte_(enc, 0x58u);
-    if (e != CborNoError) return e;
+    if (e != CBOR_NO_ERROR) return e;
     e = cbor_write_byte_(enc, (uint8_t) len);
   } else {
-    return CborErrorOutOfMemory;
+    return CBOR_ERROR_OUT_OF_MEMORY;
   }
-  if (e != CborNoError) return e;
+  if (e != CBOR_NO_ERROR) return e;
   return cbor_write_bytes_(enc, data, len);
 }
 
@@ -103,12 +103,12 @@ static inline CborError cbor_encode_text_string(CborEncoder *enc, const char *st
     e = cbor_write_byte_(enc, (uint8_t)(0x60u | (uint8_t) len));
   } else if (len <= 0xffu) {
     e = cbor_write_byte_(enc, 0x78u);
-    if (e != CborNoError) return e;
+    if (e != CBOR_NO_ERROR) return e;
     e = cbor_write_byte_(enc, (uint8_t) len);
   } else {
-    return CborErrorOutOfMemory;
+    return CBOR_ERROR_OUT_OF_MEMORY;
   }
-  if (e != CborNoError) return e;
+  if (e != CBOR_NO_ERROR) return e;
   return cbor_write_bytes_(enc, str, len);
 }
 
@@ -171,7 +171,7 @@ static inline CborError cbor_parser_init(const uint8_t *buf, size_t len, int /*f
   value->buf_len = len;
   value->offset = 0;
   value->at_end = (len == 0);
-  return CborNoError;
+  return CBOR_NO_ERROR;
 }
 
 static inline bool cbor_value_is_map(const CborValue *v) {
@@ -211,15 +211,15 @@ static inline bool cbor_value_at_end(const CborValue *v) {
 
 static inline CborError cbor_value_enter_container(CborValue *container, CborValue *child) {
   uint8_t major = cbor_major_(container);
-  if (major != 4u && major != 5u) return CborErrorUnknownType;  // must be array or map
+  if (major != 4u && major != 5u) return CBOR_ERROR_UNKNOWN_TYPE;  // must be array or map
   *child = *container;
   child->offset = container->offset + 1;  // skip the header byte
   child->at_end = false;
-  return CborNoError;
+  return CBOR_NO_ERROR;
 }
 
 static inline CborError cbor_value_get_int(CborValue *v, int *out) {
-  if (!cbor_value_is_integer(v)) return CborErrorUnknownType;
+  if (!cbor_value_is_integer(v)) return CBOR_ERROR_UNKNOWN_TYPE;
   uint8_t major = v->buf[v->offset] >> 5u;
   CborValue tmp = *v;
   uint64_t n = cbor_read_uint_(&tmp);
@@ -228,11 +228,11 @@ static inline CborError cbor_value_get_int(CborValue *v, int *out) {
     *out = -(int) (n + 1);
   else
     *out = (int) n;
-  return CborNoError;
+  return CBOR_NO_ERROR;
 }
 
 static inline CborError cbor_value_get_int64(CborValue *v, int64_t *out) {
-  if (!cbor_value_is_integer(v)) return CborErrorUnknownType;
+  if (!cbor_value_is_integer(v)) return CBOR_ERROR_UNKNOWN_TYPE;
   uint8_t major = v->buf[v->offset] >> 5u;
   CborValue tmp = *v;
   uint64_t n = cbor_read_uint_(&tmp);
@@ -241,14 +241,14 @@ static inline CborError cbor_value_get_int64(CborValue *v, int64_t *out) {
     *out = -(int64_t)(n + 1);
   else
     *out = (int64_t) n;
-  return CborNoError;
+  return CBOR_NO_ERROR;
 }
 
 static inline CborError cbor_value_get_boolean(CborValue *v, bool *out) {
-  if (!cbor_value_is_boolean(v)) return CborErrorUnknownType;
+  if (!cbor_value_is_boolean(v)) return CBOR_ERROR_UNKNOWN_TYPE;
   *out = (v->buf[v->offset] == 0xf5u);
   // do NOT advance v — caller must call cbor_value_advance separately
-  return CborNoError;
+  return CBOR_NO_ERROR;
 }
 
 static inline CborError cbor_value_get_double(CborValue *v, double *out) {
@@ -259,26 +259,26 @@ static inline CborError cbor_value_get_double(CborValue *v, double *out) {
     std::memcpy(&f, &bits, 4);
     *out = (double) f;
     // do NOT advance v — caller must call cbor_value_advance separately
-    return CborNoError;
+    return CBOR_NO_ERROR;
   }
-  return CborErrorUnknownType;
+  return CBOR_ERROR_UNKNOWN_TYPE;
 }
 
 // cbor_value_advance: skip current value (move to next)
 static inline CborError cbor_value_advance(CborValue *v) {
-  if (cbor_value_at_end(v)) return CborNoError;
+  if (cbor_value_at_end(v)) return CBOR_NO_ERROR;
   uint8_t b = v->buf[v->offset];
   uint8_t major = b >> 5u;
   uint8_t info = b & 0x1fu;
 
   if (major == 7u) {
     // Simple values / floats
-    if (b == 0xf4u || b == 0xf5u) { v->offset++; return CborNoError; }  // false/true
-    if (b == 0xfau) { v->offset += 5; return CborNoError; }              // float32
-    if (b == 0xfbu) { v->offset += 9; return CborNoError; }              // float64
-    if (b == 0xf9u) { v->offset += 3; return CborNoError; }              // float16
+    if (b == 0xf4u || b == 0xf5u) { v->offset++; return CBOR_NO_ERROR; }  // false/true
+    if (b == 0xfau) { v->offset += 5; return CBOR_NO_ERROR; }              // float32
+    if (b == 0xfbu) { v->offset += 9; return CBOR_NO_ERROR; }              // float64
+    if (b == 0xf9u) { v->offset += 3; return CBOR_NO_ERROR; }              // float16
     v->offset++;
-    return CborNoError;
+    return CBOR_NO_ERROR;
   }
 
   // For integer, byte string, text string: consume header then data
@@ -287,15 +287,15 @@ static inline CborError cbor_value_advance(CborValue *v) {
   if (info <= 23u) {
     data_len = (major == 0u || major == 1u) ? 0u : info;
   } else if (info == 0x18u) {
-    if (v->offset + 1 >= v->buf_len) { v->at_end = true; return CborNoError; }
+    if (v->offset + 1 >= v->buf_len) { v->at_end = true; return CBOR_NO_ERROR; }
     data_len = (major == 0u || major == 1u) ? 0u : v->buf[v->offset + 1];
     header_len = 2;
   } else if (info == 0x19u) {
-    if (v->offset + 2 >= v->buf_len) { v->at_end = true; return CborNoError; }
+    if (v->offset + 2 >= v->buf_len) { v->at_end = true; return CBOR_NO_ERROR; }
     data_len = (major == 0u || major == 1u) ? 0u : ((size_t) v->buf[v->offset + 1] << 8 | v->buf[v->offset + 2]);
     header_len = 3;
   }
   v->offset += header_len + data_len;
   if (v->offset >= v->buf_len) v->at_end = true;
-  return CborNoError;
+  return CBOR_NO_ERROR;
 }

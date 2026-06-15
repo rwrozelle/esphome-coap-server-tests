@@ -23,7 +23,7 @@ TEST(CborNull, EncodesNullByte) {
   uint8_t buf[4]{};
   CborEncoder enc;
   cbor_encoder_init(&enc, buf, sizeof(buf), 0);
-  ASSERT_EQ(cbor_encode_null(&enc), CborNoError);
+  ASSERT_EQ(cbor_encode_null(&enc), CBOR_NO_ERROR);
   EXPECT_EQ(cbor_encoder_get_buffer_size(&enc, buf), 1u);
   EXPECT_EQ(buf[0], 0xF6u);
 }
@@ -48,7 +48,7 @@ TEST(CborNull, OverflowReturnsError) {
   uint8_t buf[0]{};
   CborEncoder enc;
   cbor_encoder_init(&enc, buf, 0, 0);
-  EXPECT_EQ(cbor_encode_null(&enc), CborErrorOutOfMemory);
+  EXPECT_EQ(cbor_encode_null(&enc), CBOR_ERROR_OUT_OF_MEMORY);
 }
 
 // ---------------------------------------------------------------------------
@@ -62,7 +62,7 @@ static double parse_half(uint16_t bits) {
   CborValue v;
   cbor_parser_init(buf, sizeof(buf), 0, &p, &v);
   double result = 0.0;
-  EXPECT_EQ(cbor_value_get_double(&v, &result), CborNoError);
+  EXPECT_EQ(cbor_value_get_double(&v, &result), CBOR_NO_ERROR);
   return result;
 }
 
@@ -130,7 +130,7 @@ static double parse_double64(double val) {
   CborValue v;
   cbor_parser_init(buf, sizeof(buf), 0, &p, &v);
   double result = 0.0;
-  EXPECT_EQ(cbor_value_get_double(&v, &result), CborNoError);
+  EXPECT_EQ(cbor_value_get_double(&v, &result), CBOR_NO_ERROR);
   return result;
 }
 
@@ -165,7 +165,7 @@ TEST(CborDoubleFloat, SinglePrecisionRoundTrip) {
   CborValue v;
   cbor_parser_init(buf, 5, 0, &p, &v);
   double result = 0.0;
-  ASSERT_EQ(cbor_value_get_double(&v, &result), CborNoError);
+  ASSERT_EQ(cbor_value_get_double(&v, &result), CBOR_NO_ERROR);
   EXPECT_FLOAT_EQ((float) result, f);
 }
 
@@ -179,7 +179,7 @@ TEST(CborParserErrors, TruncatedHalfFloat) {
   CborValue v;
   cbor_parser_init(buf, sizeof(buf), 0, &p, &v);
   double result;
-  EXPECT_NE(cbor_value_get_double(&v, &result), CborNoError);
+  EXPECT_NE(cbor_value_get_double(&v, &result), CBOR_NO_ERROR);
 }
 
 TEST(CborParserErrors, TruncatedSingleFloat) {
@@ -188,7 +188,7 @@ TEST(CborParserErrors, TruncatedSingleFloat) {
   CborValue v;
   cbor_parser_init(buf, sizeof(buf), 0, &p, &v);
   double result;
-  EXPECT_NE(cbor_value_get_double(&v, &result), CborNoError);
+  EXPECT_NE(cbor_value_get_double(&v, &result), CBOR_NO_ERROR);
 }
 
 TEST(CborParserErrors, TruncatedDoubleFloat) {
@@ -197,7 +197,7 @@ TEST(CborParserErrors, TruncatedDoubleFloat) {
   CborValue v;
   cbor_parser_init(buf, sizeof(buf), 0, &p, &v);
   double result;
-  EXPECT_NE(cbor_value_get_double(&v, &result), CborNoError);
+  EXPECT_NE(cbor_value_get_double(&v, &result), CBOR_NO_ERROR);
 }
 
 // ---------------------------------------------------------------------------
@@ -210,7 +210,7 @@ TEST(CborParserErrors, GetDoubleOnInteger) {
   CborValue v;
   cbor_parser_init(buf, sizeof(buf), 0, &p, &v);
   double result;
-  EXPECT_NE(cbor_value_get_double(&v, &result), CborNoError);
+  EXPECT_NE(cbor_value_get_double(&v, &result), CBOR_NO_ERROR);
 }
 
 TEST(CborParserErrors, GetDoubleOnBoolean) {
@@ -219,7 +219,7 @@ TEST(CborParserErrors, GetDoubleOnBoolean) {
   CborValue v;
   cbor_parser_init(buf, sizeof(buf), 0, &p, &v);
   double result;
-  EXPECT_NE(cbor_value_get_double(&v, &result), CborNoError);
+  EXPECT_NE(cbor_value_get_double(&v, &result), CBOR_NO_ERROR);
 }
 
 TEST(CborParserErrors, GetIntOnBoolean) {
@@ -228,7 +228,7 @@ TEST(CborParserErrors, GetIntOnBoolean) {
   CborValue v;
   cbor_parser_init(buf, sizeof(buf), 0, &p, &v);
   int result;
-  EXPECT_NE(cbor_value_get_int(&v, &result), CborNoError);
+  EXPECT_NE(cbor_value_get_int(&v, &result), CBOR_NO_ERROR);
 }
 
 TEST(CborParserErrors, GetBooleanOnInteger) {
@@ -237,7 +237,7 @@ TEST(CborParserErrors, GetBooleanOnInteger) {
   CborValue v;
   cbor_parser_init(buf, sizeof(buf), 0, &p, &v);
   bool result;
-  EXPECT_NE(cbor_value_get_boolean(&v, &result), CborNoError);
+  EXPECT_NE(cbor_value_get_boolean(&v, &result), CBOR_NO_ERROR);
 }
 
 TEST(CborParserErrors, GetBooleanOnFloat) {
@@ -246,7 +246,7 @@ TEST(CborParserErrors, GetBooleanOnFloat) {
   CborValue v;
   cbor_parser_init(buf, sizeof(buf), 0, &p, &v);
   bool result;
-  EXPECT_NE(cbor_value_get_boolean(&v, &result), CborNoError);
+  EXPECT_NE(cbor_value_get_boolean(&v, &result), CBOR_NO_ERROR);
 }
 
 TEST(CborParserErrors, EnterContainerOnInteger) {
@@ -254,7 +254,7 @@ TEST(CborParserErrors, EnterContainerOnInteger) {
   CborParser p;
   CborValue v, child;
   cbor_parser_init(buf, sizeof(buf), 0, &p, &v);
-  EXPECT_NE(cbor_value_enter_container(&v, &child), CborNoError);
+  EXPECT_NE(cbor_value_enter_container(&v, &child), CBOR_NO_ERROR);
 }
 
 TEST(CborParserErrors, EnterContainerOnBoolean) {
@@ -262,7 +262,7 @@ TEST(CborParserErrors, EnterContainerOnBoolean) {
   CborParser p;
   CborValue v, child;
   cbor_parser_init(buf, sizeof(buf), 0, &p, &v);
-  EXPECT_NE(cbor_value_enter_container(&v, &child), CborNoError);
+  EXPECT_NE(cbor_value_enter_container(&v, &child), CBOR_NO_ERROR);
 }
 
 // ---------------------------------------------------------------------------
@@ -274,8 +274,8 @@ TEST(CborParserErrors, AdvancePastEnd) {
   CborParser p;
   CborValue v;
   cbor_parser_init(buf, sizeof(buf), 0, &p, &v);
-  ASSERT_EQ(cbor_value_advance(&v), CborNoError);  // consumes the one item → remaining=0
-  EXPECT_NE(cbor_value_advance(&v), CborNoError);  // remaining=0 → error
+  ASSERT_EQ(cbor_value_advance(&v), CBOR_NO_ERROR);  // consumes the one item → remaining=0
+  EXPECT_NE(cbor_value_advance(&v), CBOR_NO_ERROR);  // remaining=0 → error
 }
 
 TEST(CborParserErrors, AtEndOnEmptyBuffer) {
@@ -292,5 +292,5 @@ TEST(CborParserErrors, GetIntOnEmptyBuffer) {
   CborValue v;
   cbor_parser_init(buf, 0, 0, &p, &v);
   int result;
-  EXPECT_NE(cbor_value_get_int(&v, &result), CborNoError);
+  EXPECT_NE(cbor_value_get_int(&v, &result), CBOR_NO_ERROR);
 }

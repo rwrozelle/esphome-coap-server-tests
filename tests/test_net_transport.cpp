@@ -43,12 +43,10 @@ class TestableCoapServerNet : public CoapServerNet {
   // Rebuilds link_format_buf_ from the current App entity lists (as setup() would do).
   // Call this after adding all entities to App and before making .well-known/core requests.
   void populate_link_format_cache() {
-    uint8_t tmp[LINK_FORMAT_MAX_SIZE];
-    size_t size = build_link_format(tmp, sizeof(tmp));
-    size_t actual = std::min(size, LINK_FORMAT_MAX_SIZE);
-    link_format_buf_ = std::make_unique<uint8_t[]>(actual);
-    memcpy(link_format_buf_.get(), tmp, actual);
-    link_format_size_ = actual;
+    size_t size = build_link_format(nullptr, 0);
+    link_format_buf_ = std::make_unique<uint8_t[]>(size);
+    build_link_format(link_format_buf_.get(), size);
+    link_format_size_ = size;
   }
 
   uint16_t get_next_msg_id() const { return next_msg_id_; }
@@ -906,12 +904,10 @@ TEST(CoapServerNetSetup, InitialMsgIdIsRandomized) {
 struct TwtTestNet : CoapServerNet {
   void init_resources(size_t n) {
     resources_.init(n);
-    uint8_t tmp[LINK_FORMAT_MAX_SIZE];
-    size_t size = build_link_format(tmp, sizeof(tmp));
-    size_t actual = std::min(size, LINK_FORMAT_MAX_SIZE);
-    link_format_buf_ = std::make_unique<uint8_t[]>(actual);
-    memcpy(link_format_buf_.get(), tmp, actual);
-    link_format_size_ = actual;
+    size_t size = build_link_format(nullptr, 0);
+    link_format_buf_ = std::make_unique<uint8_t[]>(size);
+    build_link_format(link_format_buf_.get(), size);
+    link_format_size_ = size;
   }
 
   void inject(const uint8_t *buf, size_t len, const struct sockaddr_in6 &peer) {

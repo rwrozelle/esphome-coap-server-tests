@@ -84,20 +84,16 @@ class TestableCoapServer : public CoapServerOT {
   // Builds link_format_buf_ from App entity lists (as setup() would do) and
   // returns the payload as a string for assertion.
   std::string get_link_format() {
-    uint8_t tmp[LINK_FORMAT_MAX_SIZE];
-    size_t size = build_link_format(tmp, sizeof(tmp));
-    size_t actual = std::min(size, LINK_FORMAT_MAX_SIZE);
-    link_format_buf_ = std::make_unique<uint8_t[]>(actual);
-    memcpy(link_format_buf_.get(), tmp, actual);
-    link_format_size_ = actual;
+    size_t size = build_link_format(nullptr, 0);
+    link_format_buf_ = std::make_unique<uint8_t[]>(size);
+    build_link_format(link_format_buf_.get(), size);
+    link_format_size_ = size;
     return std::string(reinterpret_cast<const char *>(link_format_buf_.get()), link_format_size_);
   }
 
-  // Returns the true link-format size (may exceed LINK_FORMAT_MAX_SIZE).
-  // Passes nullptr buffer so no bytes are written — size-only pass.
+  // Returns the true link-format size (passes nullptr so no bytes are written).
   size_t compute_link_format_size() { return build_link_format(nullptr, 0); }
-
-  static constexpr size_t kMaxLinkFormatSize = LINK_FORMAT_MAX_SIZE;
+  size_t compute_link_format_fill(uint8_t *buf, size_t len) { return build_link_format(buf, len); }
 
   // Call format_link_entry with the given observable flag for unit testing.
   // Constructs a LinkFormatResource internally to stay within the protected access context.
@@ -255,11 +251,10 @@ TEST_F(LinkFormatTest, NonObservableEntryUsesIfA) {
   EXPECT_EQ(entry.find(";obs"), std::string::npos);
 }
 
-// Negative test: verify that build_link_format() returns the true payload size
-// even when it exceeds LINK_FORMAT_MAX_SIZE.  setup() uses this return value to
-// call mark_failed() before any CoAP traffic is served.
-TEST_F(LinkFormatTest, BuildLinkFormat_ExceedsLimit_ReturnsTrueSize) {
-  // 20 sensors × ~77 B/entry ≈ 1540 B of entity entries, well above the 1100 B limit.
+// Verify that build_link_format() returns the true payload size (no truncation)
+// even for large entity counts — block-wise transfer (RFC 7959) handles delivery.
+TEST_F(LinkFormatTest, BuildLinkFormat_LargeEntityCount_ReturnsTrueSize) {
+  // 20 sensors × ~77 B/entry ≈ 1540 B of entity entries.
   static constexpr int kSensorCount = 20;
   auto sensors = std::make_unique<sensor::Sensor[]>(kSensorCount);
   char names[kSensorCount][16];
@@ -273,10 +268,11 @@ TEST_F(LinkFormatTest, BuildLinkFormat_ExceedsLimit_ReturnsTrueSize) {
   TestableCoapServer srv;
   size_t size = srv.compute_link_format_size();
 
-  EXPECT_GT(size, TestableCoapServer::kMaxLinkFormatSize)
-      << "Expected " << kSensorCount << " sensors to produce a link-format payload "
-      << "(" << size << " B) exceeding the safe UDP limit ("
-      << TestableCoapServer::kMaxLinkFormatSize << " B)";
+  // nullptr-pass (size measurement) and full-fill pass must agree.
+  auto buf = std::make_unique<uint8_t[]>(size);
+  size_t filled = srv.compute_link_format_fill(buf.get(), size);
+  EXPECT_EQ(size, filled);
+  EXPECT_GT(size, 1024u) << "Expected " << kSensorCount << " sensors to exceed one block (" << size << " B)";
 }
 
 // ---------------------------------------------------------------------------

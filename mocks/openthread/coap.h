@@ -119,6 +119,10 @@ typedef struct otCoapResource {
   struct otCoapResource *mNext;
 } otCoapResource;
 
+// Block-wise transfer hook (RFC 7959 / OPENTHREAD_CONFIG_COAP_BLOCKWISE_TRANSFER_ENABLE)
+typedef otError (*otCoapBlockwiseTransmitHook)(void *aContext, uint8_t *aBlock, uint32_t aPosition,
+                                              uint16_t *aBlockLength, bool *aMore);
+
 // ---------------------------------------------------------------------------
 // C function declarations — implemented in mock_openthread.cpp
 // ---------------------------------------------------------------------------
@@ -181,6 +185,8 @@ otError otCoapOptionIteratorGetOptionUintValue(otCoapOptionIterator *aIterator, 
 otError otCoapOptionIteratorGetOptionValue(otCoapOptionIterator *aIterator, void *aValue);
 
 otError otCoapSendResponse(otInstance *aInstance, otMessage *aMessage, const otMessageInfo *aMessageInfo);
+otError otCoapSendResponseBlockWise(otInstance *aInstance, otMessage *aMessage, const otMessageInfo *aMessageInfo,
+                                    void *aContext, otCoapBlockwiseTransmitHook aTransmitHook);
 otError otCoapSendRequest(otInstance *aInstance, otMessage *aMessage, const otMessageInfo *aMessageInfo,
                           otCoapResponseHandler aHandler, void *aContext);
 

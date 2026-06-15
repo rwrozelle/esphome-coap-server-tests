@@ -8,10 +8,14 @@
 // Tests that need to verify CoAP interactions can replace these with gmock objects
 // using the link-seam pattern (extern pointer + override in test body).
 
-// Response capture — written by otCoapSendResponse, read by test helpers below
-static uint8_t g_last_response_buf[2048];
+// Response capture — written by otCoapSendResponse / otCoapSendResponseBlockWise
+static uint8_t g_last_response_buf[4096];
 static uint16_t g_last_response_len = 0;
 static int g_last_response_code = 0;
+
+// Block-wise capture
+static otCoapBlockwiseTransmitHook g_last_blockwise_hook = nullptr;
+static void *g_last_blockwise_ctx = nullptr;
 
 void mock_ot_reset_last_response() { g_last_response_len = 0; }
 uint16_t mock_ot_last_response_len() { return g_last_response_len; }
@@ -19,6 +23,10 @@ std::string mock_ot_last_response_str() {
   return std::string(reinterpret_cast<char *>(g_last_response_buf), g_last_response_len);
 }
 int mock_ot_last_response_code() { return g_last_response_code; }
+
+void mock_ot_reset_blockwise() { g_last_blockwise_hook = nullptr; g_last_blockwise_ctx = nullptr; }
+bool mock_ot_blockwise_called() { return g_last_blockwise_hook != nullptr; }
+void *mock_ot_blockwise_ctx() { return g_last_blockwise_ctx; }
 
 namespace {
 
@@ -164,6 +172,37 @@ otError otCoapSendResponse(otInstance * /*instance*/, otMessage *msg, const otMe
   g_last_response_code = static_cast<int>(m->code);
   if (m->len > 0)
     memcpy(g_last_response_buf, m->buf, m->len);
+  return OT_ERROR_NONE;
+}
+
+otError otCoapSendResponseBlockWise(otInstance * /*instance*/, otMessage *msg, const otMessageInfo * /*info*/,
+                                     void *ctx, otCoapBlockwiseTransmitHook hook) {
+  g_last_blockwise_hook = hook;
+  g_last_blockwise_ctx = ctx;
+
+  // Drive the hook at 512-byte blocks to assemble the full payload.
+  uint8_t assembled[4096];
+  uint16_t assembled_len = 0;
+  uint32_t pos = 0;
+  while (assembled_len < sizeof(assembled)) {
+    uint16_t block_len = 512;
+    if (assembled_len + block_len > (uint16_t) sizeof(assembled))
+      block_len = (uint16_t) (sizeof(assembled) - assembled_len);
+    bool more = false;
+    otError err = hook(ctx, assembled + assembled_len, pos, &block_len, &more);
+    if (err != OT_ERROR_NONE || block_len == 0)
+      break;
+    assembled_len = (uint16_t) (assembled_len + block_len);
+    pos += block_len;
+    if (!more)
+      break;
+  }
+
+  FakeMessage *m = reinterpret_cast<FakeMessage *>(msg);
+  g_last_response_code = static_cast<int>(m->code);
+  g_last_response_len = assembled_len;
+  if (assembled_len > 0)
+    memcpy(g_last_response_buf, assembled, assembled_len);
   return OT_ERROR_NONE;
 }
 
