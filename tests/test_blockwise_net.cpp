@@ -29,9 +29,10 @@ class TestableNetBW : public CoapServerNet {
   }
 
   void inject(const uint8_t *buf, size_t len) {
-    sockaddr_in6 peer{};
-    peer.sin6_family = AF_INET6;
-    inet_pton(AF_INET6, "::1", &peer.sin6_addr);
+    sockaddr_storage peer{};
+    auto &p = reinterpret_cast<sockaddr_in6 &>(peer);
+    p.sin6_family = AF_INET6;
+    inet_pton(AF_INET6, "::1", &p.sin6_addr);
     process_datagram_(buf, len, &peer);
   }
 
@@ -45,7 +46,7 @@ class TestableNetBW : public CoapServerNet {
   std::vector<uint8_t> last_sent;
 
  protected:
-  void send_response(const uint8_t *buf, size_t len, const sockaddr_in6 *) override {
+  void send_response(const uint8_t *buf, size_t len, const sockaddr_storage *) override {
     last_sent.assign(buf, buf + len);
   }
 };

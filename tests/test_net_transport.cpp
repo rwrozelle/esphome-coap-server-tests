@@ -28,7 +28,7 @@ class TestableCoapServerNet : public CoapServerNet {
     populate_link_format_cache();
   }
 
-  void inject(const uint8_t *buf, size_t len, const struct sockaddr_in6 &peer) {
+  void inject(const uint8_t *buf, size_t len, const struct sockaddr_storage &peer) {
     process_datagram_(buf, len, &peer);
   }
 
@@ -54,7 +54,7 @@ class TestableCoapServerNet : public CoapServerNet {
   std::vector<uint8_t> last_sent;
 
  protected:
-  void send_response(const uint8_t *buf, size_t len, const struct sockaddr_in6 *) override {
+  void send_response(const uint8_t *buf, size_t len, const struct sockaddr_storage *) override {
     last_sent.assign(buf, buf + len);
   }
 };
@@ -63,12 +63,22 @@ class TestableCoapServerNet : public CoapServerNet {
 // Packet builder helpers
 // ---------------------------------------------------------------------------
 
-static struct sockaddr_in6 make_peer(uint16_t port = 12345) {
-  struct sockaddr_in6 p{};
+static struct sockaddr_storage make_peer(uint16_t port = 12345) {
+  struct sockaddr_storage ss{};
+  auto &p = reinterpret_cast<sockaddr_in6 &>(ss);
   p.sin6_family = AF_INET6;
   p.sin6_port = htons(port);
   inet_pton(AF_INET6, "::1", &p.sin6_addr);
-  return p;
+  return ss;
+}
+
+static struct sockaddr_storage make_peer_ipv4(const char *addr = "127.0.0.1", uint16_t port = 12345) {
+  struct sockaddr_storage ss{};
+  auto &p = reinterpret_cast<sockaddr_in &>(ss);
+  p.sin_family = AF_INET;
+  p.sin_port = htons(port);
+  inet_pton(AF_INET, addr, &p.sin_addr);
+  return ss;
 }
 
 // Build a CoAP NON GET for a path like "ping" or "fp/1/g/1"
@@ -474,7 +484,7 @@ TEST(CoapServerNetRepublish, MultipleEntitiesAllUpdated) {
 // ---------------------------------------------------------------------------
 
 struct CallbackNet : TestableCoapServerNet {
-  NetCoapClient *expose_new_client(const struct sockaddr_in6 &peer) { return new_client_(peer); }
+  NetCoapClient *expose_new_client(const struct sockaddr_storage &peer) { return new_client_(peer); }
   void expose_free_client(NetCoapClient *c) { free_client_(c); }
 
   NetCoapClient *first_active_client() {
@@ -515,9 +525,7 @@ TEST(CoapServerNetCallbacks, ConnectedCallbackReceivesAddress) {
   std::string got_addr;
   srv.add_on_client_connected_callback([&](const std::string &addr) { got_addr = addr; });
 
-  struct sockaddr_in6 peer{};
-  peer.sin6_family = AF_INET6;
-  inet_pton(AF_INET6, "::1", &peer.sin6_addr);
+  auto peer = make_peer();
   srv.expose_new_client(peer);
 
   EXPECT_NE(got_addr.find("::1"), std::string::npos);
@@ -910,7 +918,7 @@ struct TwtTestNet : CoapServerNet {
     link_format_size_ = size;
   }
 
-  void inject(const uint8_t *buf, size_t len, const struct sockaddr_in6 &peer) {
+  void inject(const uint8_t *buf, size_t len, const struct sockaddr_storage &peer) {
     process_datagram_(buf, len, &peer);
   }
 
@@ -918,7 +926,12 @@ struct TwtTestNet : CoapServerNet {
   bool is_queuing() const { return this->twt_queuing_enabled_; }
   uint8_t queue_size() const { return this->twt_queue_.size(); }
   bool queue_empty() const { return this->twt_queue_.empty(); }
-  uint16_t queue_front_peer_port() const { return this->twt_queue_.front().peer.sin6_port; }
+  uint16_t queue_front_peer_port() const {
+    const auto &peer = this->twt_queue_.front().peer;
+    if (peer.ss_family == AF_INET6)
+      return reinterpret_cast<const sockaddr_in6 &>(peer).sin6_port;
+    return reinterpret_cast<const sockaddr_in &>(peer).sin_port;
+  }
   void do_flush() { this->flush_twt_queue_(); }
 };
 
@@ -1002,9 +1015,94 @@ TEST(CoapServerNetTwt, QueuePreservesDestinationPeer) {
   srv.inject(raw_b.data(), raw_b.size(), peer_b);
 
   EXPECT_EQ(srv.queue_size(), 2u);
-  EXPECT_EQ(srv.queue_front_peer_port(), peer_a.sin6_port);
+  EXPECT_EQ(srv.queue_front_peer_port(), reinterpret_cast<const sockaddr_in6 &>(peer_a).sin6_port);
 }
 
 #endif  // USE_WIFI_TWT
+
+// ---------------------------------------------------------------------------
+// IPv4 peer coverage — exercises addr_to_str, addr_equal, find_client_ IPv4 branches
+// ---------------------------------------------------------------------------
+
+TEST(CoapServerNetIPv4, PingResponds205FromIPv4Peer) {
+  TestableCoapServerNet srv;
+  srv.init_resources(2);
+  auto raw = make_coap_get("ping");
+  srv.inject(raw.data(), raw.size(), make_peer_ipv4());
+  ASSERT_GE(srv.last_sent.size(), 2u);
+  EXPECT_EQ(srv.last_sent[1], 0x45u);  // 2.05 Content
+}
+
+TEST(CoapServerNetIPv4, ConnectedCallbackReceivesIPv4Address) {
+  CallbackNet srv;
+  srv.init_resources(2);
+  std::string got_addr;
+  srv.add_on_client_connected_callback([&](const std::string &addr) { got_addr = addr; });
+
+  srv.expose_new_client(make_peer_ipv4("192.168.1.100"));
+
+  EXPECT_NE(got_addr.find("192.168.1.100"), std::string::npos);
+}
+
+TEST(CoapServerNetIPv4, IPv4AndIPv6PeersAreDistinctClients) {
+  CallbackNet srv;
+  srv.init_resources(2);
+
+  srv.expose_new_client(make_peer_ipv4());
+  srv.expose_new_client(make_peer());  // IPv6
+
+  EXPECT_EQ(srv.get_active_client_count(), 2u);
+}
+
+TEST(CoapServerNetIPv4, SameIPv4DifferentPortsAreSameClient) {
+  // find_client_() matches on IP only (not port) — same IPv4 address,
+  // different port must resolve to the same client slot.
+  CallbackNet srv;
+  srv.init_resources(2);
+
+  srv.expose_new_client(make_peer_ipv4("10.0.0.1", 5683));
+  EXPECT_EQ(srv.get_active_client_count(), 1u);
+
+  // Ping from same IP but different source port — touch_client_ must find the slot
+  TestableCoapServerNet &tsrv = srv;
+  auto ping = make_coap_get("ping");
+  tsrv.inject(ping.data(), ping.size(), make_peer_ipv4("10.0.0.1", 9999));
+  // No new client created — still 1
+  EXPECT_EQ(srv.get_active_client_count(), 1u);
+}
+
+TEST(CoapServerNetIPv4, AckFromIPv4WrongPeerIgnored) {
+  // addr_equal must reject ACK from a different IPv4 address.
+  ConObserverNet srv;
+  sensor::Sensor s;
+  uint16_t idx = 1;
+  srv.init_resources(4);
+  srv.set_subscription_confirm(true);
+  s.set_name("temp");
+  s.state = 1.0f;
+  srv.add_resource_for_test(EntityType::ENTITYTYPE_SENSOR, &s, true, idx);
+
+  // Subscribe via IPv4 CON observe
+  auto sub = make_con_observe("fp/1/g/1");
+  srv.inject(sub.data(), sub.size(), make_peer_ipv4("10.0.0.1"));
+
+  uint8_t payload[] = {0x81};
+  srv.trigger_notify(srv.first_observable_resource(), payload, sizeof(payload));
+  ASSERT_FALSE(srv.last_sent.empty());
+  uint16_t sent_msg_id = ((uint16_t) srv.last_sent[2] << 8) | srv.last_sent[3];
+
+  NetCoapObserver *obs = srv.first_active_observer();
+  ASSERT_NE(obs, nullptr);
+  EXPECT_TRUE(obs->con_pending);
+
+  // ACK from a different IPv4 address — must not clear pending
+  auto ack = make_coap_ack(sent_msg_id);
+  srv.inject(ack.data(), ack.size(), make_peer_ipv4("10.0.0.2"));
+  EXPECT_TRUE(obs->con_pending);
+
+  // ACK from the correct IPv4 address — must clear pending
+  srv.inject(ack.data(), ack.size(), make_peer_ipv4("10.0.0.1"));
+  EXPECT_FALSE(obs->con_pending);
+}
 
 }  // namespace esphome::coap_server

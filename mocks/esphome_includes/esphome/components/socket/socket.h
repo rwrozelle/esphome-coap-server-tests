@@ -26,4 +26,16 @@ inline std::unique_ptr<Socket> socket_loop_monitored(int /*domain*/, int /*type*
   return nullptr;
 }
 
+inline std::unique_ptr<ListenSocket> socket_ip_loop_monitored(int /*type*/, int /*protocol*/) {
+  return nullptr;
+}
+
+inline socklen_t set_sockaddr_any(struct sockaddr *addr, socklen_t /*addrlen*/, uint16_t port) {
+  auto *a = reinterpret_cast<sockaddr_in6 *>(addr);
+  a->sin6_family = AF_INET6;
+  a->sin6_port = htons(port);
+  memset(&a->sin6_addr, 0, sizeof(a->sin6_addr));
+  return sizeof(sockaddr_in6);
+}
+
 }  // namespace esphome::socket

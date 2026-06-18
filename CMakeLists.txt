@@ -136,6 +136,7 @@ target_compile_definitions(coap_server_net_lib PUBLIC
   USE_COAP_NET
   USE_COAP_OSCORE
   USE_WIFI_TWT
+  USE_NETWORK_IPV6=1
   USE_SENSOR
   USE_SWITCH
   USE_BINARY_SENSOR
@@ -168,6 +169,7 @@ target_include_directories(coap_server_net_lib_no_twt PUBLIC
 target_compile_definitions(coap_server_net_lib_no_twt PUBLIC
   USE_COAP_NET
   USE_COAP_OSCORE
+  USE_NETWORK_IPV6=1
   USE_SENSOR
   USE_SWITCH
   USE_BINARY_SENSOR
@@ -188,6 +190,46 @@ target_compile_definitions(coap_server_net_lib_no_twt PUBLIC
 target_compile_options(coap_server_net_lib_no_twt PUBLIC -UUSE_OPENTHREAD -UUSE_WIFI_TWT)
 
 target_link_libraries(coap_server_net_lib_no_twt PUBLIC coap_server_mocks)
+
+# IPv4-only net lib — USE_NETWORK_IPV6 absent; exercises #else branches in coap_server_net.cpp
+add_library(coap_server_net_lib_ipv4 STATIC
+  ${COAP_SERVER_SRC}/coap_server.cpp
+  ${COAP_SERVER_SRC}/coap_server_cbor.cpp
+  ${COAP_SERVER_SRC}/coap_server_net.cpp
+  ${COAP_SERVER_SRC}/cbor.cpp
+)
+
+target_include_directories(coap_server_net_lib_ipv4 PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/mocks
+  ${CMAKE_CURRENT_SOURCE_DIR}/mocks/esphome_includes
+  ${ESPHOME_SRC}
+)
+
+target_compile_definitions(coap_server_net_lib_ipv4 PUBLIC
+  USE_COAP_NET
+  USE_COAP_OSCORE
+  USE_WIFI_TWT
+  USE_SENSOR
+  USE_SWITCH
+  USE_BINARY_SENSOR
+  USE_TEXT_SENSOR
+  USE_NUMBER
+  USE_LOCK
+  USE_VALVE
+  USE_BUTTON
+  USE_LOGGER
+  USE_DEVICES
+  USE_COAP_SERVER_PORT=5683
+  USE_COAP_SERVER_MAX_CLIENTS=4
+  USE_COAP_SERVER_TWT_QUEUE_DEPTH=8
+  ESPHOME_BOARD="test"
+  ESPHOME_VERSION="test"
+  "final="
+)
+
+target_compile_options(coap_server_net_lib_ipv4 PUBLIC -UUSE_OPENTHREAD -UUSE_NETWORK_IPV6)
+
+target_link_libraries(coap_server_net_lib_ipv4 PUBLIC coap_server_mocks)
 
 function(add_net_test name src)
   add_executable(${name} ${src})
@@ -215,8 +257,23 @@ function(add_net_test_no_twt name src)
   add_test(NAME ${name} COMMAND ${name})
 endfunction()
 
+function(add_net_test_ipv4 name src)
+  add_executable(${name} ${src})
+  target_include_directories(${name} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/mocks
+    ${CMAKE_CURRENT_SOURCE_DIR}/mocks/esphome_includes
+    ${ESPHOME_SRC}
+  )
+  target_compile_definitions(${name} PRIVATE "final=")
+  target_compile_options(${name} PRIVATE -UUSE_OPENTHREAD -UUSE_NETWORK_IPV6)
+  target_link_libraries(${name} PRIVATE coap_server_net_lib_ipv4 coap_server_mocks gtest gtest_main gmock)
+  # Only run the IPv4-specific tests; IPv6 tests require USE_NETWORK_IPV6 at runtime.
+  add_test(NAME ${name} COMMAND ${name} --gtest_filter=CoapServerNetIPv4.*)
+endfunction()
+
 add_net_test(test_net_transport tests/test_net_transport.cpp)
 add_net_test_no_twt(test_net_transport_no_twt tests/test_net_transport.cpp)
+add_net_test_ipv4(test_net_transport_ipv4 tests/test_net_transport.cpp)
 add_net_test(test_blockwise_net tests/test_blockwise_net.cpp)
 
 add_coap_test(test_blockwise_source  tests/test_blockwise_source.cpp)
